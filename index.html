@@ -33,7 +33,32 @@
       margin-bottom: 0.2rem;
     }
     .post-title {
-      margin-bottom: 1.5rem; /* Add this to increase spacing below the name */
+      margin-bottom: 1.5rem;
+    }
+    .author.text-secondary {
+      color: #6c757d !important;
+    }
+    .profile-centered {
+      display: flex;
+      flex-direction: row;
+      align-items: flex-start;
+      gap: 2rem;
+    }
+    .profile-centered .profile-text {
+      flex: 1;
+    }
+    .profile-centered .profile-photo {
+      flex-shrink: 0;
+      width: 270px;
+    }
+    @media (max-width: 768px) {
+      .profile-centered {
+        flex-direction: column;
+        align-items: center;
+      }
+      .profile-centered .profile-photo {
+        width: 200px;
+      }
     }
   </style>
   <link defer rel="stylesheet" href="/assets/css/jekyll-pygments-themes-native.css" media="none" id="highlight_theme_dark">
@@ -53,7 +78,7 @@
         <div class="collapse navbar-collapse text-right" id="navbarNav">
           <ul class="navbar-nav ml-auto flex-nowrap">
             <li class="nav-item active"><a class="nav-link" href="/">home <span class="sr-only">(current)</span></a></li>
-            <li class="nav-item"><a class="nav-link" href="/about.html">more about me</a></li>
+            <li class="nav-item"><a class="nav-link" href="/about.html">more about me!</a></li>
 <!--             <li class="nav-item"><a class="nav-link" href="/cv/">cv</a></li> -->
 <!--             <li class="nav-item dropdown">
               <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">submenus</a>
@@ -96,47 +121,48 @@
           </p>
         </div> -->
 
-        <div class="profile float-right">
-          <figure>
-            <picture>
-              <source class="responsive-img-srcset"
-                srcset="/assets/img/avs_prof_pic-480.webp 480w,/assets/img/avs_prof_pic-800.webp 800w,/assets/img/avs_prof_pic-1400.webp 1400w,"
-                type="image/webp" sizes="(min-width: 930px) 270.0px, (min-width: 576px) 30vw, 95vw">
-              <img
-                src="/assets/img/AnandShah3.jpg"
-                class="img-fluid z-depth-1 rounded"
-                width="100%" height="auto" alt="AnandShah3.jpg" loading="eager"
-                onerror="this.onerror=null; $('.responsive-img-srcset').remove();">
-            </picture>
-          </figure>
+        <div class="profile-centered mb-5">
+          <div class="profile-text">
+            <p> Hello! I'm a third-year PhD student at MIT Sloan working with
+              <a href="https://john-joseph-horton.com/">John Horton</a> (MIT Sloan) and
+              <a href="https://economics.mit.edu/people/faculty/parag-pathak">Parag Pathak</a> (MIT Econ).
+              Here is my <a href="/assets/pdf/Anand_CV_website.pdf" target="_blank">CV</a>.</p>
 
-          <div class="more-info mt-2">
-            <p>E62-461</p>
-            <p>100 Main Street</p>
-            <p>Cambridge, MA 02142</p>
+            <p>Institutions will change given AI. I'm interested in mapping how that change happens
+              and in the optimal design of institutions navigating a world of ubiquitous AI use.
+              My research draws on tools from mechanism design, IO, and labor economics.</p>
+
+            <p>Before starting my PhD, I was at Chicago Booth as a Research Professional in Economics with Eric Budish and Jacob Leshno.
+              I graduated from the University of Chicago in 2021 (B.S. Mathematics, B.A. Economics with Honors), where I was awarded the
+              Economics Department's thesis award for my work on market design solutions to arms races in political fundraising (advised by Phil Reny).</p>
+
+            <p>If you're interested in discussing research ideas or just want to chat, please feel free to reach out.</p>
+
+            <p class="desc mt-2">
+              <a href="/affiliations.html">References</a>. Email: <a href="mailto:avshah@mit.edu">avshah@mit.edu</a>.
+            </p>
           </div>
 
-          <p class="desc mt-2">
-            <a href="/affiliations.html">References</a>. Email: <a href="mailto:avshah@mit.edu">avshah@mit.edu</a>.
-          </p>
+          <div class="profile-photo">
+            <figure>
+              <picture>
+                <source class="responsive-img-srcset"
+                  srcset="/assets/img/avs_prof_pic-480.webp 480w,/assets/img/avs_prof_pic-800.webp 800w,/assets/img/avs_prof_pic-1400.webp 1400w,"
+                  type="image/webp" sizes="270px">
+                <img
+                  src="/assets/img/AnandShah3.jpg"
+                  class="img-fluid z-depth-1 rounded"
+                  width="100%" height="auto" alt="AnandShah3.jpg" loading="eager"
+                  onerror="this.onerror=null; $('.responsive-img-srcset').remove();">
+              </picture>
+            </figure>
+            <div class="more-info mt-2">
+              <p>E62-461</p>
+              <p>100 Main Street</p>
+              <p>Cambridge, MA 02142</p>
+            </div>
+          </div>
         </div>
-
-        <section class="clearfix mb-5">
-          <p> Hello! I'm a third-year PhD student at MIT Sloan working with
-            <a href="https://john-joseph-horton.com/">John Horton</a> (MIT Sloan) and
-            <a href="https://economics.mit.edu/people/faculty/parag-pathak">Parag Pathak</a> (MIT Econ).
-            Here is my <a href="/assets/pdf/Anand_CV_website.pdf" target="_blank">CV</a>.</p>
-
-          <p>Institutions will change given AI. I'm interested in mapping how that change happens
-            and in the optimal design of institutions navigating a world of ubiquitous AI use.
-            My research draws on tools from mechanism design, IO, and labor economics.</p>
-
-          <p>Before starting my PhD, I was at Chicago Booth as a Research Professional in Economics with Eric Budish and Jacob Leshno.
-            I graduated from the University of Chicago in 2021 (B.S. Mathematics, B.A. Economics with Honors), where I was awarded the
-            Economics Department's thesis award for my work on market design solutions to arms races in political fundraising (advised by Phil Reny).</p>
-
-          <p>If you're interested in discussing research ideas or just want to chat, please feel free to reach out.</p>
-        </section>
 
         <hr class="section-separator">
         
@@ -167,7 +193,7 @@
               <div class="row">
                 <div class="col-sm-10">
                   <div class="title">Learning from Synthetic Labs: Language Models as Auction Participants</div>
-                  <div class="periodical">Under review, ACM EC 2026.</div>
+                  <div class="periodical">NeurIPS Behavioral Machine Learning Workshop 2024. Under review, ACM EC 2026.</div>
                   <div class="author"><b>Anand Shah*</b>, Kehang Zhu*, Yanchen Jiang, Jeffrey G. Wang, Arif K. Dayi, John J. Horton, David C. Parkes.</div>
                   <div class="author text-secondary">* denotes joint first author.</div>
                 </div>
