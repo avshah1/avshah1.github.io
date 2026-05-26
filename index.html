@@ -68,6 +68,66 @@
         width: 200px;
       }
     }
+    /* Media coverage dropdown on paper entries */
+    .media-dropdown {
+      margin-top: 0.4rem;
+    }
+    .media-dropdown > summary {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      cursor: pointer;
+      list-style: none;
+      font-size: 0.8rem;
+      line-height: 1.4;
+      padding: 0.18rem 0.7rem;
+      border: 1px solid var(--global-theme-color);
+      border-radius: 1rem;
+      color: var(--global-theme-color);
+      background: transparent;
+      user-select: none;
+      width: fit-content;
+      transition: background-color 0.15s ease, color 0.15s ease;
+    }
+    .media-dropdown > summary::-webkit-details-marker {
+      display: none;
+    }
+    .media-dropdown > summary:hover {
+      background: var(--global-theme-color);
+      color: var(--global-bg-color);
+    }
+    .media-dropdown > summary::after {
+      content: "\25BE"; /* down triangle */
+      font-size: 0.7em;
+      transition: transform 0.15s ease;
+    }
+    .media-dropdown[open] > summary::after {
+      transform: rotate(180deg);
+    }
+    .media-dropdown .media-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      margin-top: 0.5rem;
+    }
+    .media-btn {
+      display: inline-block;
+      padding: 0.18rem 0.6rem;
+      font-size: 0.8rem;
+      line-height: 1.4;
+      border: 1px solid var(--global-divider-color);
+      border-radius: 1rem;
+      color: var(--global-theme-color);
+      background: transparent;
+      text-decoration: none;
+      transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+    }
+    .media-btn:hover {
+      background: var(--global-theme-color);
+      border-color: var(--global-theme-color);
+      color: var(--global-bg-color);
+      text-decoration: none;
+    }
   </style>
   <link defer rel="stylesheet" href="/assets/css/jekyll-pygments-themes-native.css" media="none" id="highlight_theme_dark">
   <script>initTheme();</script>
@@ -184,6 +244,21 @@
                   <div class="title">Access to Justice in the Age of AI: Evidence from U.S. Federal Courts</div>
                   <div class="periodical">Working Paper. <a href="/assets/pdf/papers/pro-se/Pro_Se_Automation.pdf" target="_blank">Paper link</a>. <a href="https://x.com/avshah99/status/2046973689942376698" target="_blank">Twitter thread</a>.</div>
                   <div class="author"><b>Anand Shah</b>, Joshua Levy.</div>
+                  <details class="media-dropdown">
+                    <summary>Media</summary>
+                    <div class="media-links">
+                      <a class="media-btn" href="https://www.nytimes.com/2026/05/25/us/politics/artificial-intelliegence-courts.html?unlocked_article_code=1.lFA.R6nx.lNmCXH26VvSm&amp;smid=nytcore-ios-share" target="_blank" rel="noopener">New York Times</a>
+                      <a class="media-btn" href="https://wapo.st/4dncIVu" target="_blank" rel="noopener">Washington Post</a>
+                      <a class="media-btn" href="https://www.reuters.com/legal/government/no-lawyer-no-money-more-americans-are-suing-with-ai-help-2026-05-15/" target="_blank" rel="noopener">Reuters</a>
+                      <a class="media-btn" href="https://www.nbcnews.com/tech/innovation/ai-chatgpt-court-law-legal-lawyer-self-represent-pro-se-attorney-rcna230401" target="_blank" rel="noopener">NBC News</a>
+                      <a class="media-btn" href="https://www.bloomberg.com/news/articles/2026-05-20/how-chatgpt-and-claude-are-fueling-a-diy-lawsuit-boom-in-us-courts" target="_blank" rel="noopener">Bloomberg</a>
+                      <a class="media-btn" href="https://news.bloomberglaw.com/business-and-practice/do-it-yourself-lawsuits-aided-by-ai-are-clogging-us-courts" target="_blank" rel="noopener">Bloomberg Law</a>
+                      <a class="media-btn" href="https://www.ft.com/content/0ed06464-a330-4901-87df-bea8a72f382b" target="_blank" rel="noopener">Financial Times</a>
+                      <a class="media-btn" href="https://www.law360.com/articles/2478027/ai-proofing-class-action-notices-from-pro-se-objection-surge" target="_blank" rel="noopener">Law360</a>
+                      <a class="media-btn" href="https://www.fastcompany.com/91539168/ai-is-flooding-the-courts-with-more-cases-more-filings-and-more-fake-citations" target="_blank" rel="noopener">Fast Company</a>
+                      <a class="media-btn" href="https://www.inc.com/moses-jeanfrancois/ai-is-entering-the-courtroom-could-it-help-you-win/91345558" target="_blank" rel="noopener">Inc.</a>
+                    </div>
+                  </details>
                 </div>
               </div>
             </li>
