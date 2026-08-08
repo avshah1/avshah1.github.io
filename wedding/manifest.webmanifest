@@ -1,0 +1,11 @@
+{
+  "name": "Sara + Anand Venue Scout",
+  "short_name": "Venue Scout",
+  "description": "The family wedding venue scorecard.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#fff8eb",
+  "theme_color": "#3b1028",
+  "orientation": "portrait-primary"
+}
