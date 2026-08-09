@@ -179,8 +179,12 @@
   }
 
   function nameMatch(value) {
-    const normalized = normalizeKey(value).replace(/-/g, "");
-    const exact = KNOWN_NAMES.find((name) => normalizeKey(name).replace(/-/g, "") === normalized);
+    const normalizedKey = normalizeKey(value);
+    const normalized = normalizedKey.replace(/-/g, "");
+    const exact = KNOWN_NAMES.find((name) => {
+      const knownKey = normalizeKey(name);
+      return normalizedKey === knownKey || normalizedKey.startsWith(`${knownKey}-`);
+    });
     if (exact) return { exact };
     const ranked = KNOWN_NAMES
       .map((name) => ({ name, distance: levenshtein(normalized, normalizeKey(name)) }))
@@ -372,7 +376,8 @@
   }
 
   function enterApp(profile, greet = false) {
-    state.profile = { name: cleanName(profile.name), key: normalizeKey(profile.name) };
+    const matchedName = nameMatch(profile.name).exact || cleanName(profile.name);
+    state.profile = { name: matchedName, key: normalizeKey(matchedName) };
     writeJSON(STORAGE.profile, state.profile);
     elements.profileInitial.textContent = state.profile.name.charAt(0).toUpperCase();
     elements.profileButton.setAttribute("aria-label", `Switch person. Current person: ${state.profile.name}`);
@@ -541,7 +546,7 @@
           <h2>Anything else?</h2>
           <p>The unforgettable detail, the tiny red flag, or the thought you don’t want to lose.</p>
           <label class="notes-label" for="misc-notes">Miscellaneous thoughts · optional</label>
-          <textarea id="misc-notes" name="notes" maxlength="5000" placeholder="The courtyard at sunset… / Granddad may struggle with the stairs…"></textarea>
+          <textarea id="misc-notes" name="notes" maxlength="5000" placeholder="The courtyard at sunset… / Lots of stairs, no elevators. Elderly may struggle…"></textarea>
         </section>
         <p id="score-error" class="field-error" role="alert"></p>
         <div class="score-submit-bar">
