@@ -344,7 +344,6 @@ textarea {
 }
 
 .suggestion-card,
-.invite-help,
 .venue-suggestion {
   margin-top: 0.9rem;
   padding: 0.95rem;
@@ -354,7 +353,6 @@ textarea {
 }
 
 .suggestion-card p,
-.invite-help p,
 .venue-suggestion p {
   margin: 0;
   font-size: 0.88rem;
@@ -415,7 +413,7 @@ code {
 }
 
 .button-small {
-  min-height: 40px;
+  min-height: 44px;
   padding: 0.55rem 0.75rem;
   font-size: 0.76rem;
 }
@@ -696,13 +694,12 @@ code {
 
 .venue-info h3 {
   margin: 0 0 0.27rem;
-  overflow: hidden;
   color: var(--ink);
   font-family: Georgia, "Times New Roman", serif;
   font-size: 1.05rem;
   font-weight: 700;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
 }
 
 .venue-meta {
@@ -931,7 +928,7 @@ code {
 
 .score-choice.na-choice {
   grid-column: 1 / -1;
-  min-height: 42px;
+  min-height: 44px;
   margin-top: 0.1rem;
   border-style: dashed;
   background: transparent;

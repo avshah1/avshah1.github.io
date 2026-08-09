@@ -56,7 +56,6 @@
   ];
   const STORAGE = {
     profile: "venue-scout:v1:profile",
-    invite: "venue-scout:v1:invite",
     venues: "venue-scout:v1:venues",
     drafts: "venue-scout:v1:drafts",
     outbox: "venue-scout:v1:outbox",
@@ -74,7 +73,6 @@
     suggestedName: document.getElementById("suggested-name"),
     acceptSuggestion: document.getElementById("accept-suggestion"),
     keepName: document.getElementById("keep-name"),
-    inviteHelp: document.getElementById("invite-help"),
     main: document.getElementById("main-content"),
     bottomNav: document.getElementById("bottom-nav"),
     profileButton: document.getElementById("profile-button"),
@@ -95,7 +93,6 @@
   const cachedRemote = readJSON(STORAGE.state, {});
   const state = {
     profile: readJSON(STORAGE.profile, null),
-    inviteKey: captureInviteKey(),
     venues: readJSON(STORAGE.venues, SEED_VENUES),
     submissions: indexBy(cachedRemote.ownSubmissions || [], "venueId"),
     results: indexBy(cachedRemote.results || [], "venueId"),
@@ -132,16 +129,6 @@
       if (item && item[key]) result[item[key]] = item;
       return result;
     }, {});
-  }
-
-  function captureInviteKey() {
-    const fragment = decodeURIComponent(window.location.hash.replace(/^#/, ""));
-    const candidate = fragment.startsWith("key=") ? fragment.slice(4) : fragment;
-    if (/^[a-f0-9]{40,128}$/i.test(candidate)) {
-      try { localStorage.setItem(STORAGE.invite, candidate); } catch { /* Private browsing can restrict storage. */ }
-      return candidate;
-    }
-    try { return localStorage.getItem(STORAGE.invite) || ""; } catch { return ""; }
   }
 
   function cleanName(value) {
@@ -287,18 +274,12 @@
 
   async function apiFetch(path, options = {}) {
     if (!API_URL || API_URL.includes("__WEDDING")) throw new Error("The shared score service is not configured yet.");
-    if (!state.inviteKey) {
-      const error = new Error("This invite link is missing its access key.");
-      error.status = 401;
-      throw error;
-    }
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 12000);
     try {
       const response = await fetch(`${API_URL}${path}`, {
         ...options,
         headers: {
-          Authorization: `Bearer ${state.inviteKey}`,
           ...(options.body ? { "Content-Type": "application/json" } : {}),
           ...(options.headers || {}),
         },
@@ -336,22 +317,15 @@
   }
 
   async function refreshRemoteState(options = {}) {
-    if (!state.profile || !navigator.onLine || !state.inviteKey) return;
+    if (!state.profile || !navigator.onLine) return;
     state.loading = true;
     updateConnectionUI();
     if (!options.silent && state.screen === "venues" && !state.venues.length) renderLoading();
     try {
       const data = await apiFetch(`/api/state?name=${encodeURIComponent(state.profile.name)}`);
       applyRemoteState(data);
-    } catch (error) {
-      if (error.status === 401) {
-        try { localStorage.removeItem(STORAGE.invite); } catch { /* Ignore. */ }
-        state.inviteKey = "";
-        elements.inviteHelp.hidden = false;
-        showToast("Please reopen the full family invite link.");
-      } else if (!options.silent) {
-        showToast("Couldn’t refresh — showing the scores saved on this phone.");
-      }
+    } catch {
+      if (!options.silent) showToast("Couldn’t refresh — showing the scores saved on this phone.");
     } finally {
       state.loading = false;
       updateConnectionUI();
@@ -360,7 +334,7 @@
   }
 
   async function syncOutbox() {
-    if (state.syncing || !navigator.onLine || !state.inviteKey || !state.profile) return;
+    if (state.syncing || !navigator.onLine || !state.profile) return;
     const operations = outbox();
     if (!operations.length) return;
     state.syncing = true;
@@ -483,8 +457,7 @@
     elements.main.innerHTML = `
       <section class="page-intro">
         <p class="kicker">Welcome, ${escapeHTML(state.profile.name)}</p>
-        <h1>Where’s the<br><em>magic?</em></h1>
-        <p>Score each stop while the details are fresh. Your draft saves with every tap—even when the signal disappears.</p>
+        <h1>Venue Rating</h1>
         <div class="progress-summary" aria-label="${submittedCount} of ${sorted.length} venues submitted">
           <div class="progress-track"><div class="progress-fill" style="width:${progress}%"></div></div>
           <span>${submittedCount} / ${sorted.length} synced</span>
@@ -631,7 +604,7 @@
     submitButton.textContent = navigator.onLine ? "Sending…" : "Saving…";
     setDraft(venue.id, { ...data, dirty: true, baseSubmitted: Boolean(state.submissions[venue.id]), updatedAt: new Date().toISOString() });
 
-    if (navigator.onLine && state.inviteKey) {
+    if (navigator.onLine) {
       try {
         const response = await apiFetch("/api/submissions", { method: "POST", body: JSON.stringify(payload) });
         applyRemoteState(response);
@@ -802,7 +775,7 @@
     closeVenueDialog();
     renderVenues();
 
-    if (navigator.onLine && state.inviteKey) {
+    if (navigator.onLine) {
       try {
         const response = await apiFetch("/api/venues", { method: "POST", body: JSON.stringify(payload) });
         if (Array.isArray(response.venues)) {
@@ -880,11 +853,6 @@
       elements.nameInput.focus();
       return;
     }
-    if (!state.inviteKey) {
-      elements.inviteHelp.hidden = false;
-      elements.loginError.textContent = "This bookmark is missing the family access key.";
-      return;
-    }
     const match = nameMatch(entered);
     if (match.exact) {
       enterApp({ name: match.exact }, true);
@@ -932,9 +900,8 @@
 
   function boot() {
     bindEvents();
-    elements.inviteHelp.hidden = Boolean(state.inviteKey);
     updateConnectionUI();
-    if (state.profile?.name && state.inviteKey) enterApp(state.profile, false);
+    if (state.profile?.name) enterApp(state.profile, false);
     else {
       elements.loginView.hidden = false;
       elements.appView.hidden = true;

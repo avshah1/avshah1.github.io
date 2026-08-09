@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#3b1028">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Venue Scout">
+    <meta name="robots" content="noindex, nofollow, noarchive">
+    <meta name="description" content="Sara and Anand's family wedding venue scorecard.">
+    <title>Sara + Anand · Venue Scout</title>
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <div id="offline-banner" class="connection-banner" role="status" aria-live="polite" hidden>
+      <span aria-hidden="true">↻</span>
+      <span id="offline-copy">Offline — your answers will stay safe on this phone.</span>
+    </div>
+
+    <div id="login-view" class="login-view">
+      <div class="sun-disc" aria-hidden="true"></div>
+      <div class="login-shell">
+        <header class="login-hero">
+          <p class="kicker">Rajasthan · Venue Expedition</p>
+          <p class="monogram" aria-hidden="true">S <span>✦</span> A</p>
+          <h1>Help us find<br><em>the place.</em></h1>
+          <p class="hero-copy">Seven venues. Five factors. One very important family group chat.</p>
+        </header>
+
+        <section class="login-card" aria-labelledby="login-title">
+          <div class="stamp" aria-hidden="true">7,500<br><small>miles</small></div>
+          <p class="step-label">First things first</p>
+          <h2 id="login-title">Who’s scouting?</h2>
+          <form id="login-form" novalidate>
+            <label for="name-input">Your name</label>
+            <div class="input-row">
+              <input id="name-input" name="name" type="text" autocomplete="name" autocapitalize="words" enterkeyhint="go" maxlength="50" placeholder="e.g. Sara" required>
+              <button type="submit" class="arrow-button" aria-label="Continue">→</button>
+            </div>
+            <p id="login-error" class="field-error" role="alert"></p>
+          </form>
+
+          <div id="name-suggestion" class="suggestion-card" hidden>
+            <p>Did you mean <strong id="suggested-name"></strong>?</p>
+            <div class="suggestion-actions">
+              <button id="accept-suggestion" type="button" class="button button-primary">Yes, that’s me</button>
+              <button id="keep-name" type="button" class="button button-quiet">No, keep mine</button>
+            </div>
+          </div>
+
+          <p class="privacy-note">Names keep everyone’s scorecard separate. This is a family tool, not a secure account.</p>
+        </section>
+      </div>
+    </div>
+
+    <div id="app-view" class="app-view" hidden>
+      <header class="app-header">
+        <button id="brand-button" class="brand-button" type="button" aria-label="Back to venues">
+          <span class="brand-mark" aria-hidden="true">S<span>✦</span>A</span>
+          <span><small>Venue</small> Scout</span>
+        </button>
+        <div class="profile-area">
+          <span id="sync-status" class="sync-status" aria-live="polite">Saved</span>
+          <button id="profile-button" class="profile-button" type="button" aria-label="Switch person">
+            <span id="profile-initial">A</span>
+          </button>
+        </div>
+      </header>
+
+      <main id="main-content" tabindex="-1"></main>
+
+      <nav id="bottom-nav" class="bottom-nav" aria-label="Primary navigation">
+        <button type="button" data-screen="venues" class="nav-item is-active" aria-current="page">
+          <span aria-hidden="true">⌂</span><span>Venues</span>
+        </button>
+        <button type="button" data-screen="results" class="nav-item">
+          <span aria-hidden="true">♛</span><span>Results</span>
+        </button>
+        <button type="button" data-action="export" class="nav-item">
+          <span aria-hidden="true">↓</span><span>Backup</span>
+        </button>
+      </nav>
+    </div>
+
+    <dialog id="add-venue-dialog" class="sheet-dialog">
+      <form id="add-venue-form" method="dialog" novalidate>
+        <div class="sheet-handle" aria-hidden="true"></div>
+        <button type="button" class="dialog-close" data-close-dialog aria-label="Close">×</button>
+        <p class="step-label">New stop</p>
+        <h2>Add a venue</h2>
+        <label for="venue-name">Venue name</label>
+        <input id="venue-name" name="venueName" type="text" maxlength="80" autocapitalize="words" placeholder="e.g. City Palace" required>
+        <label for="venue-city">City</label>
+        <input id="venue-city" name="city" type="text" maxlength="50" autocapitalize="words" placeholder="e.g. Udaipur" required>
+        <p id="venue-error" class="field-error" role="alert"></p>
+        <div id="venue-suggestion" class="venue-suggestion" hidden></div>
+        <button type="submit" class="button button-primary button-block">Add to the route</button>
+      </form>
+    </dialog>
+
+    <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+    <script src="config.js"></script>
+    <script src="app.js" defer></script>
+  </body>
+</html>
