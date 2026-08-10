@@ -489,6 +489,10 @@
     }
   }
 
+  function noteEditorIsMounted() {
+    return Boolean(document.getElementById("venue-notes-input"));
+  }
+
   async function syncOutbox() {
     if (state.syncing || !navigator.onLine || !state.profile) return;
     const operations = outbox();
@@ -530,13 +534,13 @@
         }
       }
       if (syncedCurrentNonNotes) {
-        await refreshRemoteState({ silent: true, preserveEditor: state.screen === "notes" });
+        await refreshRemoteState({ silent: true, preserveEditor: noteEditorIsMounted() });
         showToast(`${syncedCurrentNonNotes} saved change${syncedCurrentNonNotes === 1 ? "" : "s"} synced.`);
       }
     } finally {
       state.syncing = false;
       updateConnectionUI();
-      if (state.screen === "notes") updateNoteSaveUI(state.selectedVenueId);
+      if (noteEditorIsMounted()) updateNoteSaveUI(state.selectedVenueId);
       else renderCurrentScreen();
       if (synced && outbox().length && navigator.onLine) setTimeout(() => syncOutbox(), 0);
     }
@@ -593,19 +597,19 @@
   }
 
   function setScreen(screen) {
-    if (state.screen === "notes" && screen !== "notes") {
+    if (noteEditorIsMounted() && screen !== "score") {
       clearTimeout(state.noteSyncTimer);
       syncOutbox();
     }
     state.screen = screen;
-    if (screen !== "score" && screen !== "notes") state.selectedVenueId = null;
+    if (screen !== "score") state.selectedVenueId = null;
     renderCurrentScreen();
     elements.main.focus({ preventScroll: true });
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   function updateNavigation() {
-    const navigationScreen = state.screen === "score" || state.screen === "notes" ? "venues" : state.screen;
+    const navigationScreen = state.screen === "score" ? "venues" : state.screen;
     elements.bottomNav.querySelectorAll("[data-screen]").forEach((button) => {
       const active = button.dataset.screen === navigationScreen;
       button.classList.toggle("is-active", active);
@@ -618,7 +622,6 @@
     if (!state.profile || elements.appView.hidden) return;
     updateNavigation();
     if (state.screen === "score" && state.selectedVenueId) renderScorecard(state.selectedVenueId);
-    else if (state.screen === "notes" && state.selectedVenueId) renderNotes(state.selectedVenueId);
     else if (state.screen === "results") renderResults();
     else renderVenues();
   }
@@ -681,48 +684,7 @@
   }
 
   function openNotes(venueId) {
-    state.selectedVenueId = venueId;
-    state.screen = "notes";
-    renderNotes(venueId);
-    updateNavigation();
-    elements.main.focus({ preventScroll: true });
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  }
-
-  function renderNotes(venueId) {
-    const venue = state.venues.find((item) => item.id === venueId);
-    if (!venue) return setScreen("venues");
-    const note = getVenueNoteData(venueId);
-    elements.main.innerHTML = `
-      <button type="button" class="back-button" data-back-venues>← Back to the route</button>
-      <section class="note-page">
-        <header class="note-page-heading">
-          <p class="kicker">${escapeHTML(venue.city)} · Venue notes</p>
-          <h1>${escapeHTML(venue.name)}</h1>
-          <div id="note-save-status" class="note-save-status" role="status" aria-live="polite"></div>
-        </header>
-        <section class="note-prompts" aria-labelledby="note-prompts-title">
-          <h2 id="note-prompts-title">Ideas to capture</h2>
-          <div class="note-prompt-grid">
-            ${NOTE_PROMPTS.map((prompt, index) => `<button type="button" data-note-prompt="${index}">${escapeHTML(prompt)}</button>`).join("")}
-          </div>
-        </section>
-        <label class="sr-only" for="venue-notes-input">Notes for ${escapeHTML(venue.name)}</label>
-        <textarea id="venue-notes-input" class="note-editor" maxlength="20000" spellcheck="true" autocapitalize="sentences" placeholder="What stood out? Service, rooms, food, stairs, sound, tiny red flags…"></textarea>
-        <footer class="note-page-footer">
-          <p>There’s no Save button. Every change is kept on this phone immediately and synced automatically.</p>
-          <button type="button" class="button button-secondary" data-rate-from-notes>Rate this venue</button>
-        </footer>
-      </section>`;
-    const editor = document.getElementById("venue-notes-input");
-    editor.value = note.body || "";
-    elements.main.querySelector("[data-back-venues]").addEventListener("click", () => setScreen("venues"));
-    elements.main.querySelector("[data-rate-from-notes]").addEventListener("click", () => openScorecard(venueId));
-    elements.main.querySelectorAll("[data-note-prompt]").forEach((button) => {
-      button.addEventListener("click", () => insertNotePrompt(editor, NOTE_PROMPTS[Number(button.dataset.notePrompt)], venueId));
-    });
-    editor.addEventListener("input", () => saveVenueNote(venueId, editor.value));
-    updateNoteSaveUI(venueId);
+    openScorecard(venueId, { jumpTo: "notes" });
   }
 
   function insertNotePrompt(editor, prompt, venueId) {
@@ -759,6 +721,7 @@
     const queued = queuedNote(venueId);
     const note = getVenueNoteData(venueId);
     status.className = "note-save-status";
+    status.hidden = false;
     if (state.storageError) {
       status.classList.add("save-error");
       status.textContent = "Couldn’t save on this phone — copy your note before leaving";
@@ -775,17 +738,22 @@
       status.classList.add("saved-remote");
       status.textContent = "Saved with your rating";
     } else {
-      status.textContent = "Every keystroke saves automatically";
+      status.textContent = "";
+      status.hidden = true;
     }
   }
 
-  function openScorecard(venueId) {
+  function openScorecard(venueId, options = {}) {
     state.selectedVenueId = venueId;
     state.screen = "score";
     renderScorecard(venueId);
     updateNavigation();
     elements.main.focus({ preventScroll: true });
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    if (options.jumpTo === "notes") {
+      requestAnimationFrame(() => document.getElementById("inline-notes")?.scrollIntoView({ behavior: "smooth", block: "start" }));
+    } else {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
   }
 
   function scorecardData(venueId) {
@@ -839,24 +807,42 @@
         ${alreadySubmitted ? "<p>You can edit and resubmit this rating at any time.</p>" : ""}
         <div class="score-progress"><div class="progress-track"><div id="score-progress-fill" class="progress-fill" style="width:${answered * 20}%"></div></div><span id="score-progress-copy">${answered} of 5 answered</span></div>
       </section>
+      <nav class="score-jump-nav" aria-label="Scorecard sections">
+        <button type="button" data-jump-rankings>Rankings</button>
+        <button type="button" data-jump-notes>Notes</button>
+      </nav>
       <form id="score-form" novalidate>
-        <div class="factor-stack">${FACTORS.map((factor) => factorMarkup(factor, data.ratings || {})).join("")}</div>
-        <section class="rating-notes-shortcut">
-          <div>
-            <h2>Miscellaneous notes</h2>
-            <p>${venueNote.body ? "Your venue note is saved separately and ready to edit." : "Jot down details, red flags, and anything you don’t want to forget."}</p>
+        <div id="ranking-factors" class="factor-stack">${FACTORS.map((factor) => factorMarkup(factor, data.ratings || {})).join("")}</div>
+        <section id="inline-notes" class="inline-notes" aria-labelledby="inline-notes-title">
+          <div class="inline-notes-heading">
+            <h2 id="inline-notes-title">Notes</h2>
+            <div id="note-save-status" class="note-save-status" role="status" aria-live="polite" hidden></div>
           </div>
-          <button type="button" class="button button-secondary button-small" data-open-notes>${venueNote.body ? "Edit notes" : "Add notes"}</button>
+          <section class="note-prompts" aria-labelledby="note-prompts-title">
+            <h3 id="note-prompts-title">Ideas to capture</h3>
+            <div class="note-prompt-grid">
+              ${NOTE_PROMPTS.map((prompt, index) => `<button type="button" data-note-prompt="${index}">${escapeHTML(prompt)}</button>`).join("")}
+            </div>
+          </section>
+          <label class="sr-only" for="venue-notes-input">Notes for ${escapeHTML(venue.name)}</label>
+          <textarea id="venue-notes-input" class="note-editor" maxlength="20000" spellcheck="true" autocapitalize="sentences" placeholder="What stood out?"></textarea>
         </section>
         <p id="score-error" class="field-error" role="alert"></p>
         <div class="score-submit-bar">
-          <button id="submit-score" type="submit" class="button button-primary button-block">${alreadySubmitted ? "Update my score" : "Submit my score"}</button>
-          <p class="submit-hint">Drafts save on every tap. Group results unlock only after this score reaches the shared list.</p>
+          <button id="submit-score" type="submit" class="button button-primary button-block">Save my rankings</button>
         </div>
       </form>`;
     const form = document.getElementById("score-form");
+    const editor = document.getElementById("venue-notes-input");
+    editor.value = venueNote.body || "";
     elements.main.querySelector("[data-back-venues]").addEventListener("click", () => setScreen("venues"));
-    elements.main.querySelector("[data-open-notes]").addEventListener("click", () => openNotes(venueId));
+    elements.main.querySelector("[data-jump-rankings]").addEventListener("click", () => document.getElementById("ranking-factors").scrollIntoView({ behavior: "smooth", block: "start" }));
+    elements.main.querySelector("[data-jump-notes]").addEventListener("click", () => document.getElementById("inline-notes").scrollIntoView({ behavior: "smooth", block: "start" }));
+    elements.main.querySelectorAll("[data-note-prompt]").forEach((button) => {
+      button.addEventListener("click", () => insertNotePrompt(editor, NOTE_PROMPTS[Number(button.dataset.notePrompt)], venueId));
+    });
+    editor.addEventListener("input", () => saveVenueNote(venueId, editor.value));
+    updateNoteSaveUI(venueId);
     form.addEventListener("change", () => saveCurrentDraft(venueId, form));
     form.addEventListener("submit", (event) => {
       event.preventDefault();
@@ -933,7 +919,7 @@
           document.getElementById("score-error").textContent = error.message;
           state.submitting = false;
           submitButton.disabled = false;
-          submitButton.textContent = state.submissions[venue.id] ? "Update my score" : "Submit my score";
+          submitButton.textContent = "Save my rankings";
           return;
         }
       }
@@ -1209,7 +1195,7 @@
     });
     window.addEventListener("online", () => {
       updateConnectionUI();
-      syncOutbox().then(() => refreshRemoteState({ silent: true, preserveEditor: state.screen === "notes" }));
+      syncOutbox().then(() => refreshRemoteState({ silent: true, preserveEditor: noteEditorIsMounted() }));
     });
     window.addEventListener("offline", updateConnectionUI);
     document.addEventListener("visibilitychange", () => {

@@ -842,13 +842,74 @@ code {
   background: rgba(255, 253, 248, 0.72);
 }
 
-.note-prompts h2 {
+.note-prompts h2,
+.note-prompts h3 {
   margin: 0 0 0.55rem;
   color: var(--muted);
   font-size: 0.68rem;
   font-weight: 850;
   letter-spacing: 0.11em;
   text-transform: uppercase;
+}
+
+.score-jump-nav {
+  position: sticky;
+  z-index: 15;
+  top: calc(68px + env(safe-area-inset-top, 0px));
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.45rem;
+  margin: 0 -0.15rem 0.85rem;
+  padding: 0.4rem;
+  border: 1px solid rgba(59, 16, 40, 0.1);
+  border-radius: 15px;
+  background: rgba(255, 248, 235, 0.95);
+  box-shadow: 0 8px 22px rgba(59, 16, 40, 0.08);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.score-jump-nav button {
+  min-height: 44px;
+  border: 0;
+  border-radius: 11px;
+  background: white;
+  color: var(--wine);
+  font-size: 0.78rem;
+  font-weight: 850;
+}
+
+#ranking-factors,
+#inline-notes {
+  scroll-margin-top: calc(8.5rem + env(safe-area-inset-top, 0px));
+}
+
+.inline-notes {
+  margin-top: 0.9rem;
+  padding: 1rem;
+  border: 1px solid rgba(59, 16, 40, 0.1);
+  border-radius: 21px;
+  background: var(--paper);
+  box-shadow: 0 10px 32px rgba(59, 16, 40, 0.06);
+}
+
+.inline-notes-heading {
+  display: flex;
+  min-height: 32px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem;
+  margin-bottom: 0.65rem;
+}
+
+.inline-notes-heading h2 {
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.35rem;
+}
+
+.inline-notes .note-editor {
+  min-height: 260px;
 }
 
 .note-prompt-grid {
