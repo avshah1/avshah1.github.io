@@ -800,7 +800,7 @@
     const answered = FACTORS.filter((factor) => Object.prototype.hasOwnProperty.call(data.ratings || {}, factor.key)).length;
     const alreadySubmitted = Boolean(state.submissions[venueId]);
     elements.main.innerHTML = `
-      <button type="button" class="back-button" data-back-venues>← Back to the route</button>
+      <button type="button" class="back-button" data-back-venues>← Back</button>
       <section class="score-heading">
         <p class="kicker">${escapeHTML(venue.city)} · ${alreadySubmitted ? "Edit scorecard" : "Fresh scorecard"}</p>
         <h1>${escapeHTML(venue.name)}</h1>
