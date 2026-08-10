@@ -50,6 +50,7 @@
     "Cool touches?",
     "Unique things that are possible here?",
   ];
+  const RETIRED_VENUE_IDS = new Set(["jaipur-shiv-vilas"]);
   const KNOWN_PEOPLE = [
     { name: "Anand", aliases: ["Anand", "Anand Shah"] },
     { name: "Sara", aliases: ["Sara"] },
@@ -155,7 +156,9 @@
   }
 
   function mergeSeedVenues(items) {
-    const merged = new Map((Array.isArray(items) ? items : []).map((venue) => [venue.id, venue]));
+    const merged = new Map((Array.isArray(items) ? items : [])
+      .filter((venue) => !RETIRED_VENUE_IDS.has(venue.id))
+      .map((venue) => [venue.id, venue]));
     SEED_VENUES.forEach((venue) => {
       merged.set(venue.id, { ...(merged.get(venue.id) || {}), ...venue });
     });
@@ -456,8 +459,9 @@
     const queuedIds = queuedVenueIds();
     const localOnlyVenues = state.venues.filter((venue) => queuedIds.has(venue.id));
     if (Array.isArray(data.venues)) {
-      const remoteIds = new Set(data.venues.map((venue) => venue.id));
-      state.venues = [...data.venues, ...localOnlyVenues.filter((venue) => !remoteIds.has(venue.id))];
+      const visibleVenues = data.venues.filter((venue) => !RETIRED_VENUE_IDS.has(venue.id));
+      const remoteIds = new Set(visibleVenues.map((venue) => venue.id));
+      state.venues = [...visibleVenues, ...localOnlyVenues.filter((venue) => !remoteIds.has(venue.id))];
       writeJSON(STORAGE.venues, state.venues);
     }
     if (Array.isArray(data.ownSubmissions)) state.submissions = indexBy(data.ownSubmissions, "venueId");
