@@ -44,20 +44,40 @@
       description: "How easy is the full guest journey—arrival, buses, accessibility, rooms, and getting around?",
     },
   ];
-  const KNOWN_NAMES = ["Anand", "Sara", "Savita", "Rahul", "Vipul", "Reshma", "Raja", "Namrata"];
+  const NOTE_PROMPTS = [
+    "Room amenities you liked?",
+    "Service that went above and beyond?",
+    "Cool touches?",
+    "Unique things that are possible here?",
+  ];
+  const KNOWN_PEOPLE = [
+    { name: "Anand", aliases: ["Anand", "Anand Shah"] },
+    { name: "Sara", aliases: ["Sara"] },
+    { name: "Vipul", aliases: ["Vipul", "Vipul Shah"] },
+    { name: "Reshma", aliases: ["Reshma", "Reshma Shah"] },
+    { name: "Amit", aliases: ["Amit", "Amit Shah", "Amit Salecha"] },
+    { name: "Ujjawal", aliases: ["Ujjawal", "Ujjawal Shah", "Ujjawal Salecha"] },
+    { name: "Raja", aliases: ["Raja", "Raja Shah", "Hardik", "Hardik Shah"] },
+    { name: "Rahul", aliases: ["Rahul", "Rahul Jain"] },
+    { name: "Savita", aliases: ["Savita", "Savita Jain"] },
+    { name: "Namrata", aliases: ["Namrata", "Namrata Rajgarhia"] },
+  ];
   const SEED_VENUES = [
-    { id: "jaipur-taj-devi-ratn", name: "Taj Devi Ratn", city: "Jaipur", sortOrder: 10 },
-    { id: "jaipur-shiv-vilas", name: "Shiv Vilas", city: "Jaipur", sortOrder: 20 },
-    { id: "jaipur-anantara-jewel-bagh", name: "Anantara Jewel Bagh", city: "Jaipur", sortOrder: 30 },
+    { id: "jaipur-anantara-jewel-bagh", name: "Anantara Jewel Bagh", city: "Jaipur", sortOrder: 10 },
+    { id: "jaipur-taj-devi-ratn", name: "Taj Devi Ratn", city: "Jaipur", sortOrder: 20 },
+    { id: "jaipur-itc-rajputana", name: "ITC Rajputana", city: "Jaipur", sortOrder: 30 },
+    { id: "kumbhalgarh-raajsa-resort", name: "Raajsa Resort Kumbhalgarh", city: "Kumbhalgarh", sortOrder: 35 },
     { id: "udaipur-trident", name: "Trident, Udaipur", city: "Udaipur", sortOrder: 40 },
     { id: "udaipur-taj-lalit-bagh", name: "Taj Lalit Bagh", city: "Udaipur", sortOrder: 50 },
     { id: "udaipur-fateh-collection", name: "Fateh Collection", city: "Udaipur", sortOrder: 60 },
     { id: "udaipur-aurika", name: "Aurika, Udaipur", city: "Udaipur", sortOrder: 70 },
+    { id: "udaipur-wyndham-grand-fateh-sagar", name: "Wyndham Grand Udaipur Fateh Sagar Lake", city: "Udaipur", sortOrder: 80 },
   ];
   const STORAGE = {
     profile: "venue-scout:v1:profile",
     venues: "venue-scout:v1:venues",
     drafts: "venue-scout:v1:drafts",
+    noteDrafts: "venue-scout:v1:note-drafts",
     outbox: "venue-scout:v1:outbox",
     state: "venue-scout:v1:remote-state",
   };
@@ -93,8 +113,9 @@
   const cachedRemote = readJSON(STORAGE.state, {});
   const state = {
     profile: readJSON(STORAGE.profile, null),
-    venues: readJSON(STORAGE.venues, SEED_VENUES),
+    venues: mergeSeedVenues(readJSON(STORAGE.venues, [])),
     submissions: indexBy(cachedRemote.ownSubmissions || [], "venueId"),
+    notes: indexBy(cachedRemote.ownNotes || [], "venueId"),
     results: indexBy(cachedRemote.results || [], "venueId"),
     method: cachedRemote.method || DEFAULT_METHOD,
     screen: "venues",
@@ -104,6 +125,8 @@
     submitting: false,
     pendingName: "",
     toastTimer: null,
+    noteSyncTimer: null,
+    storageError: false,
   };
 
   function readJSON(key, fallback) {
@@ -129,6 +152,14 @@
       if (item && item[key]) result[item[key]] = item;
       return result;
     }, {});
+  }
+
+  function mergeSeedVenues(items) {
+    const merged = new Map((Array.isArray(items) ? items : []).map((venue) => [venue.id, venue]));
+    SEED_VENUES.forEach((venue) => {
+      merged.set(venue.id, { ...(merged.get(venue.id) || {}), ...venue });
+    });
+    return [...merged.values()];
   }
 
   function cleanName(value) {
@@ -180,17 +211,16 @@
 
   function nameMatch(value) {
     const normalizedKey = normalizeKey(value);
-    const normalized = normalizedKey.replace(/-/g, "");
-    const exact = KNOWN_NAMES.find((name) => {
-      const knownKey = normalizeKey(name);
-      return normalizedKey === knownKey || normalizedKey.startsWith(`${knownKey}-`);
-    });
-    if (exact) return { exact };
-    const ranked = KNOWN_NAMES
-      .map((name) => ({ name, distance: levenshtein(normalized, normalizeKey(name)) }))
-      .sort((a, b) => a.distance - b.distance);
+    const exact = KNOWN_PEOPLE.find((person) => person.aliases.some((alias) => normalizeKey(alias) === normalizedKey));
+    if (exact) return { exact: exact.name };
+    const ranked = KNOWN_PEOPLE
+      .map((person) => ({
+        name: person.name,
+        distance: Math.min(...person.aliases.map((alias) => levenshtein(normalizedKey, normalizeKey(alias)))),
+      }))
+      .sort((a, b) => a.distance - b.distance || a.name.localeCompare(b.name));
     const best = ranked[0];
-    const threshold = normalized.length >= 6 ? 2 : 1;
+    const threshold = normalizedKey.length >= 6 ? 2 : 1;
     if (best && best.distance <= threshold && (!ranked[1] || ranked[1].distance > best.distance)) return { suggestion: best.name };
     return {};
   }
@@ -218,7 +248,7 @@
   function setDraft(venueId, value) {
     const drafts = readJSON(STORAGE.drafts, {});
     drafts[draftId(venueId)] = value;
-    writeJSON(STORAGE.drafts, drafts);
+    return writeJSON(STORAGE.drafts, drafts);
   }
 
   function removeDraft(venueId) {
@@ -227,28 +257,148 @@
     writeJSON(STORAGE.drafts, drafts);
   }
 
+  function noteDraftId(venueId, profileKey = state.profile?.key) {
+    return `${profileKey}:${venueId}`;
+  }
+
+  function getNoteDraft(venueId) {
+    return readJSON(STORAGE.noteDrafts, {})[noteDraftId(venueId)] || null;
+  }
+
+  function setNoteDraft(venueId, value) {
+    const drafts = readJSON(STORAGE.noteDrafts, {});
+    drafts[noteDraftId(venueId)] = value;
+    return writeJSON(STORAGE.noteDrafts, drafts);
+  }
+
+  function removeNoteDraft(venueId, mutationId = null, profileKey = state.profile?.key) {
+    const drafts = readJSON(STORAGE.noteDrafts, {});
+    const id = noteDraftId(venueId, profileKey);
+    if (mutationId && drafts[id]?.mutationId !== mutationId) return;
+    delete drafts[id];
+    writeJSON(STORAGE.noteDrafts, drafts);
+  }
+
   function outbox() {
     return readJSON(STORAGE.outbox, []);
   }
 
   function queueOperation(operation) {
     const operations = outbox().filter((item) => item.id !== operation.id);
-    operations.push({ ...operation, queuedAt: new Date().toISOString() });
-    writeJSON(STORAGE.outbox, operations);
+    const queued = {
+      ...operation,
+      version: operation.version || makeMutationId(),
+      queuedAt: new Date().toISOString(),
+    };
+    operations.push(queued);
+    const saved = writeJSON(STORAGE.outbox, operations);
+    if (!saved) state.storageError = true;
+    updateConnectionUI();
+    return saved ? queued : null;
+  }
+
+  function operationVersion(operation) {
+    return operation?.version || operation?.payload?.mutationId || operation?.queuedAt || null;
+  }
+
+  function removeOutboxOperation(id, version = null) {
+    writeJSON(STORAGE.outbox, outbox().filter((item) => {
+      if (item.id !== id) return true;
+      return version ? operationVersion(item) !== version : false;
+    }));
     updateConnectionUI();
   }
 
-  function removeOutboxOperation(id) {
-    writeJSON(STORAGE.outbox, outbox().filter((item) => item.id !== id));
-    updateConnectionUI();
+  function makeMutationId() {
+    if (window.crypto?.randomUUID) return window.crypto.randomUUID();
+    return `${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
   }
 
   function queuedSubmission(venueId) {
     return outbox().find((item) => item.type === "submission" && item.profileKey === state.profile?.key && item.payload.venueId === venueId);
   }
 
+  function queuedNote(venueId) {
+    return outbox().find((item) => item.type === "note" && item.profileKey === state.profile?.key && item.payload.venueId === venueId);
+  }
+
   function queuedVenueIds() {
     return new Set(outbox().filter((item) => item.type === "venue").map((item) => item.payload.id));
+  }
+
+  function getVenueNoteData(venueId) {
+    const local = getNoteDraft(venueId);
+    if (local) return { ...local, source: "local" };
+    const queued = queuedNote(venueId)?.payload;
+    if (queued) return { body: queued.body || "", updatedAt: queued.updatedAt, mutationId: queued.mutationId, source: "local" };
+    if (state.notes[venueId]) return { ...state.notes[venueId], source: "remote" };
+    const legacyDraft = getDraft(venueId);
+    if (typeof legacyDraft?.notes === "string" && legacyDraft.notes) {
+      return { body: legacyDraft.notes, updatedAt: legacyDraft.updatedAt, source: "legacy" };
+    }
+    const legacySubmission = state.submissions[venueId];
+    if (typeof legacySubmission?.notes === "string" && legacySubmission.notes) {
+      return { body: legacySubmission.notes, updatedAt: legacySubmission.updatedAt, source: "legacy" };
+    }
+    return { body: "", source: "empty" };
+  }
+
+  function writeRemoteCache() {
+    writeJSON(STORAGE.state, {
+      personKey: state.profile?.key || "",
+      ownSubmissions: Object.values(state.submissions),
+      ownNotes: Object.values(state.notes),
+      results: Object.values(state.results),
+      method: state.method,
+    });
+  }
+
+  function migrateLocalIdentity(previousKey, nextKey, nextName) {
+    if (!previousKey || previousKey === nextKey) return;
+    [STORAGE.drafts, STORAGE.noteDrafts].forEach((storageKey) => {
+      const records = readJSON(storageKey, {});
+      Object.keys(records).forEach((id) => {
+        if (!id.startsWith(`${previousKey}:`)) return;
+        const nextId = `${nextKey}:${id.slice(previousKey.length + 1)}`;
+        const current = records[nextId];
+        if (!current || String(records[id].updatedAt || "") >= String(current.updatedAt || "")) records[nextId] = records[id];
+        delete records[id];
+      });
+      writeJSON(storageKey, records);
+    });
+
+    const migrated = new Map();
+    outbox().forEach((operation) => {
+      let next = operation;
+      if (operation.profileKey === previousKey) {
+        const payload = { ...operation.payload, personName: nextName };
+        const id = operation.type === "submission" || operation.type === "note"
+          ? `${operation.type}:${nextKey}:${payload.venueId}`
+          : operation.id;
+        next = { ...operation, id, profileKey: nextKey, payload };
+      }
+      const current = migrated.get(next.id);
+      if (!current || String(next.queuedAt || "") >= String(current.queuedAt || "")) migrated.set(next.id, next);
+    });
+    writeJSON(STORAGE.outbox, [...migrated.values()]);
+  }
+
+  function ensureNoteDraftsQueued() {
+    if (!state.profile) return;
+    const drafts = readJSON(STORAGE.noteDrafts, {});
+    Object.entries(drafts).forEach(([id, draft]) => {
+      if (!id.startsWith(`${state.profile.key}:`) || !draft || typeof draft.body !== "string") return;
+      const venueId = id.slice(state.profile.key.length + 1);
+      if (queuedNote(venueId)) return;
+      const mutationId = draft.mutationId || makeMutationId();
+      setNoteDraft(venueId, { ...draft, mutationId });
+      queueOperation({
+        id: `note:${state.profile.key}:${venueId}`,
+        type: "note",
+        profileKey: state.profile.key,
+        payload: { personName: state.profile.name, venueId, body: draft.body, mutationId },
+      });
+    });
   }
 
   function showToast(message) {
@@ -311,13 +461,10 @@
       writeJSON(STORAGE.venues, state.venues);
     }
     if (Array.isArray(data.ownSubmissions)) state.submissions = indexBy(data.ownSubmissions, "venueId");
+    if (Array.isArray(data.ownNotes)) state.notes = indexBy(data.ownNotes, "venueId");
     if (Array.isArray(data.results)) state.results = indexBy(data.results, "venueId");
     if (data.method) state.method = data.method;
-    writeJSON(STORAGE.state, {
-      ownSubmissions: Object.values(state.submissions),
-      results: Object.values(state.results),
-      method: state.method,
-    });
+    writeRemoteCache();
   }
 
   async function refreshRemoteState(options = {}) {
@@ -333,7 +480,8 @@
     } finally {
       state.loading = false;
       updateConnectionUI();
-      renderCurrentScreen();
+      if (!options.preserveEditor) renderCurrentScreen();
+      else updateNoteSaveUI(state.selectedVenueId);
     }
   }
 
@@ -343,42 +491,75 @@
     if (!operations.length) return;
     state.syncing = true;
     updateConnectionUI();
-    const ordered = [...operations].sort((a, b) => (a.type === "venue" ? -1 : 1) - (b.type === "venue" ? -1 : 1));
+    const priority = { venue: 0, note: 1, submission: 2 };
+    const ordered = [...operations].sort((a, b) => (priority[a.type] ?? 9) - (priority[b.type] ?? 9));
     let synced = 0;
+    let syncedCurrentNonNotes = 0;
     try {
       for (const operation of ordered) {
         try {
-          const endpoint = operation.type === "venue" ? "/api/venues" : "/api/submissions";
-          const data = await apiFetch(endpoint, { method: "POST", body: JSON.stringify(operation.payload) });
+          const endpoint = operation.type === "venue"
+            ? "/api/venues"
+            : operation.type === "note" ? "/api/notes" : "/api/submissions";
+          const data = await apiFetch(endpoint, {
+            method: "POST",
+            body: JSON.stringify(operation.payload),
+            keepalive: operation.type === "note",
+          });
+          const isCurrentPerson = operation.profileKey === state.profile?.key;
           if (operation.type === "venue" && Array.isArray(data.venues)) {
             state.venues = data.venues;
             writeJSON(STORAGE.venues, state.venues);
-          } else {
+          } else if (operation.type === "note") {
+            if (isCurrentPerson) applyRemoteState(data);
+            removeNoteDraft(operation.payload.venueId, operation.payload.mutationId, operation.profileKey);
+          } else if (isCurrentPerson) {
             applyRemoteState(data);
             removeDraft(operation.payload.venueId);
           }
-          removeOutboxOperation(operation.id);
+          removeOutboxOperation(operation.id, operationVersion(operation));
           synced += 1;
+          if (operation.type !== "note" && isCurrentPerson) syncedCurrentNonNotes += 1;
         } catch (error) {
           if (error.status && error.status < 500) showToast(error.message);
           break;
         }
       }
-      if (synced) {
-        await refreshRemoteState({ silent: true });
-        showToast(`${synced} saved change${synced === 1 ? "" : "s"} synced.`);
+      if (syncedCurrentNonNotes) {
+        await refreshRemoteState({ silent: true, preserveEditor: state.screen === "notes" });
+        showToast(`${syncedCurrentNonNotes} saved change${syncedCurrentNonNotes === 1 ? "" : "s"} synced.`);
       }
     } finally {
       state.syncing = false;
       updateConnectionUI();
-      renderCurrentScreen();
+      if (state.screen === "notes") updateNoteSaveUI(state.selectedVenueId);
+      else renderCurrentScreen();
+      if (synced && outbox().length && navigator.onLine) setTimeout(() => syncOutbox(), 0);
     }
   }
 
   function enterApp(profile, greet = false) {
+    const previousKey = profile.key || normalizeKey(profile.name);
     const matchedName = nameMatch(profile.name).exact || cleanName(profile.name);
-    state.profile = { name: matchedName, key: normalizeKey(matchedName) };
+    const nextProfile = { name: matchedName, key: normalizeKey(matchedName) };
+    migrateLocalIdentity(previousKey, nextProfile.key, nextProfile.name);
+    state.profile = nextProfile;
+    const personCache = readJSON(STORAGE.state, {});
+    const cachedPersonKey = personCache.personKey || previousKey;
+    if (cachedPersonKey === state.profile.key) {
+      state.submissions = indexBy(personCache.ownSubmissions || [], "venueId");
+      state.notes = indexBy(personCache.ownNotes || [], "venueId");
+      state.results = indexBy(personCache.results || [], "venueId");
+      state.method = personCache.method || DEFAULT_METHOD;
+    } else {
+      state.submissions = {};
+      state.notes = {};
+      state.results = {};
+      state.method = DEFAULT_METHOD;
+    }
     writeJSON(STORAGE.profile, state.profile);
+    writeJSON(STORAGE.venues, state.venues);
+    ensureNoteDraftsQueued();
     elements.profileInitial.textContent = state.profile.name.charAt(0).toUpperCase();
     elements.profileButton.setAttribute("aria-label", `Switch person. Current person: ${state.profile.name}`);
     elements.loginView.hidden = true;
@@ -391,6 +572,8 @@
   }
 
   function switchPerson() {
+    clearTimeout(state.noteSyncTimer);
+    syncOutbox();
     state.profile = null;
     state.selectedVenueId = null;
     try { localStorage.removeItem(STORAGE.profile); } catch { /* Ignore. */ }
@@ -406,16 +589,21 @@
   }
 
   function setScreen(screen) {
+    if (state.screen === "notes" && screen !== "notes") {
+      clearTimeout(state.noteSyncTimer);
+      syncOutbox();
+    }
     state.screen = screen;
-    if (screen !== "score") state.selectedVenueId = null;
+    if (screen !== "score" && screen !== "notes") state.selectedVenueId = null;
     renderCurrentScreen();
     elements.main.focus({ preventScroll: true });
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   function updateNavigation() {
+    const navigationScreen = state.screen === "score" || state.screen === "notes" ? "venues" : state.screen;
     elements.bottomNav.querySelectorAll("[data-screen]").forEach((button) => {
-      const active = button.dataset.screen === state.screen;
+      const active = button.dataset.screen === navigationScreen;
       button.classList.toggle("is-active", active);
       if (active) button.setAttribute("aria-current", "page");
       else button.removeAttribute("aria-current");
@@ -426,6 +614,7 @@
     if (!state.profile || elements.appView.hidden) return;
     updateNavigation();
     if (state.screen === "score" && state.selectedVenueId) renderScorecard(state.selectedVenueId);
+    else if (state.screen === "notes" && state.selectedVenueId) renderNotes(state.selectedVenueId);
     else if (state.screen === "results") renderResults();
     else renderVenues();
   }
@@ -453,7 +642,10 @@
               <h3>${escapeHTML(venue.name)}</h3>
               <p class="venue-meta"><span class="status-dot ${status.className}"></span>${escapeHTML(status.label)}</p>
             </div>
-            <button class="venue-action ${status.action === "Edit" ? "edit" : ""}" type="button" data-rate-venue="${escapeHTML(venue.id)}">${status.action}</button>
+            <div class="venue-actions">
+              <button class="venue-action notes-action ${getVenueNoteData(venue.id).body ? "has-notes" : ""}" type="button" data-notes-venue="${escapeHTML(venue.id)}">Notes</button>
+              <button class="venue-action ${status.action === "Edit" ? "edit" : ""}" type="button" data-rate-venue="${escapeHTML(venue.id)}">${status.action}</button>
+            </div>
           </article>`;
       }).join("");
       return `<section class="city-group"><h2 class="city-heading">${escapeHTML(city)}</h2><div class="venue-list">${cards}</div></section>`;
@@ -478,7 +670,109 @@
     elements.main.querySelectorAll("[data-rate-venue]").forEach((button) => {
       button.addEventListener("click", () => openScorecard(button.dataset.rateVenue));
     });
+    elements.main.querySelectorAll("[data-notes-venue]").forEach((button) => {
+      button.addEventListener("click", () => openNotes(button.dataset.notesVenue));
+    });
     elements.main.querySelector("[data-add-venue]")?.addEventListener("click", openVenueDialog);
+  }
+
+  function openNotes(venueId) {
+    state.selectedVenueId = venueId;
+    state.screen = "notes";
+    renderNotes(venueId);
+    updateNavigation();
+    elements.main.focus({ preventScroll: true });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function renderNotes(venueId) {
+    const venue = state.venues.find((item) => item.id === venueId);
+    if (!venue) return setScreen("venues");
+    const note = getVenueNoteData(venueId);
+    elements.main.innerHTML = `
+      <button type="button" class="back-button" data-back-venues>← Back to the route</button>
+      <section class="note-page">
+        <header class="note-page-heading">
+          <p class="kicker">${escapeHTML(venue.city)} · Venue notes</p>
+          <h1>${escapeHTML(venue.name)}</h1>
+          <div id="note-save-status" class="note-save-status" role="status" aria-live="polite"></div>
+        </header>
+        <section class="note-prompts" aria-labelledby="note-prompts-title">
+          <h2 id="note-prompts-title">Ideas to capture</h2>
+          <div class="note-prompt-grid">
+            ${NOTE_PROMPTS.map((prompt, index) => `<button type="button" data-note-prompt="${index}">${escapeHTML(prompt)}</button>`).join("")}
+          </div>
+        </section>
+        <label class="sr-only" for="venue-notes-input">Notes for ${escapeHTML(venue.name)}</label>
+        <textarea id="venue-notes-input" class="note-editor" maxlength="20000" spellcheck="true" autocapitalize="sentences" placeholder="What stood out? Service, rooms, food, stairs, sound, tiny red flags…"></textarea>
+        <footer class="note-page-footer">
+          <p>There’s no Save button. Every change is kept on this phone immediately and synced automatically.</p>
+          <button type="button" class="button button-secondary" data-rate-from-notes>Rate this venue</button>
+        </footer>
+      </section>`;
+    const editor = document.getElementById("venue-notes-input");
+    editor.value = note.body || "";
+    elements.main.querySelector("[data-back-venues]").addEventListener("click", () => setScreen("venues"));
+    elements.main.querySelector("[data-rate-from-notes]").addEventListener("click", () => openScorecard(venueId));
+    elements.main.querySelectorAll("[data-note-prompt]").forEach((button) => {
+      button.addEventListener("click", () => insertNotePrompt(editor, NOTE_PROMPTS[Number(button.dataset.notePrompt)], venueId));
+    });
+    editor.addEventListener("input", () => saveVenueNote(venueId, editor.value));
+    updateNoteSaveUI(venueId);
+  }
+
+  function insertNotePrompt(editor, prompt, venueId) {
+    const spacer = editor.value && !editor.value.endsWith("\n") ? "\n\n" : "";
+    editor.value = `${editor.value}${spacer}${prompt}\n`;
+    editor.focus();
+    editor.setSelectionRange(editor.value.length, editor.value.length);
+    saveVenueNote(venueId, editor.value);
+  }
+
+  function saveVenueNote(venueId, body) {
+    const mutationId = makeMutationId();
+    const updatedAt = new Date().toISOString();
+    const value = String(body || "").slice(0, 20000);
+    const localSaved = setNoteDraft(venueId, { body: value, mutationId, updatedAt });
+    const queued = queueOperation({
+      id: `note:${state.profile.key}:${venueId}`,
+      type: "note",
+      profileKey: state.profile.key,
+      payload: { personName: state.profile.name, venueId, body: value, mutationId },
+    });
+    if (!localSaved || !queued) {
+      state.storageError = true;
+      showToast("This browser could not save the note. Please copy it before leaving.");
+    }
+    updateNoteSaveUI(venueId);
+    clearTimeout(state.noteSyncTimer);
+    state.noteSyncTimer = setTimeout(() => syncOutbox(), 650);
+  }
+
+  function updateNoteSaveUI(venueId) {
+    const status = document.getElementById("note-save-status");
+    if (!status || !venueId) return;
+    const queued = queuedNote(venueId);
+    const note = getVenueNoteData(venueId);
+    status.className = "note-save-status";
+    if (state.storageError) {
+      status.classList.add("save-error");
+      status.textContent = "Couldn’t save on this phone — copy your note before leaving";
+    } else if (queued && !navigator.onLine) {
+      status.classList.add("saved-local");
+      status.textContent = "Offline · saved on this phone · will sync later";
+    } else if (queued) {
+      status.classList.add("saving");
+      status.textContent = state.syncing ? "Saving everywhere…" : "Saved on this phone · syncing soon";
+    } else if (note.source === "remote") {
+      status.classList.add("saved-remote");
+      status.textContent = "Saved everywhere";
+    } else if (note.source === "legacy") {
+      status.classList.add("saved-remote");
+      status.textContent = "Saved with your rating";
+    } else {
+      status.textContent = "Every keystroke saves automatically";
+    }
   }
 
   function openScorecard(venueId) {
@@ -510,15 +804,15 @@
     const naChecked = hasValue && ratings[factor.key] === null ? " checked" : "";
     return `
       <fieldset class="factor-card ${factor.className}" data-factor-card="${factor.key}">
-        <legend>
-          <span class="factor-head">
-            <span class="factor-icon" aria-hidden="true">${factor.icon}</span>
-            <span>
-              <span class="factor-title"><h2>${factor.name}</h2><span>1–10</span></span>
-              <span class="factor-description">${factor.description}</span>
-            </span>
-          </span>
-        </legend>
+        <legend class="sr-only">${factor.name}</legend>
+        <div class="factor-head">
+          <span class="factor-icon" aria-hidden="true">${factor.icon}</span>
+          <div>
+            <div class="factor-title"><h2>${factor.name}</h2><span>1–10</span></div>
+            <p class="factor-description">${factor.description}</p>
+          </div>
+        </div>
+        <div class="score-scale-hints" aria-hidden="true"><span>😬 1 · Not good</span><span>10 · Excellent 🤩</span></div>
         <div class="score-grid" role="radiogroup" aria-label="${factor.name}, 1 to 10 or not applicable">
           ${choices}
           <label class="score-choice na-choice"><input type="radio" name="${factor.key}" value="na"${naChecked}><span>N/A · Can’t judge this one</span></label>
@@ -530,6 +824,7 @@
     const venue = state.venues.find((item) => item.id === venueId);
     if (!venue) return setScreen("venues");
     const data = scorecardData(venueId);
+    const venueNote = getVenueNoteData(venueId);
     const answered = FACTORS.filter((factor) => Object.prototype.hasOwnProperty.call(data.ratings || {}, factor.key)).length;
     const alreadySubmitted = Boolean(state.submissions[venueId]);
     elements.main.innerHTML = `
@@ -537,16 +832,17 @@
       <section class="score-heading">
         <p class="kicker">${escapeHTML(venue.city)} · ${alreadySubmitted ? "Edit scorecard" : "Fresh scorecard"}</p>
         <h1>${escapeHTML(venue.name)}</h1>
-        <p>${alreadySubmitted ? "You can update anything below. You’ve already unlocked the group view for this venue." : "First instinct is usually the right one. Every factor needs a score or N/A."}</p>
+        ${alreadySubmitted ? "<p>You can edit and resubmit this rating at any time.</p>" : ""}
         <div class="score-progress"><div class="progress-track"><div id="score-progress-fill" class="progress-fill" style="width:${answered * 20}%"></div></div><span id="score-progress-copy">${answered} of 5 answered</span></div>
       </section>
       <form id="score-form" novalidate>
         <div class="factor-stack">${FACTORS.map((factor) => factorMarkup(factor, data.ratings || {})).join("")}</div>
-        <section class="notes-card">
-          <h2>Anything else?</h2>
-          <p>The unforgettable detail, the tiny red flag, or the thought you don’t want to lose.</p>
-          <label class="notes-label" for="misc-notes">Miscellaneous thoughts · optional</label>
-          <textarea id="misc-notes" name="notes" maxlength="5000" placeholder="The courtyard at sunset… / Lots of stairs, no elevators. Elderly may struggle…"></textarea>
+        <section class="rating-notes-shortcut">
+          <div>
+            <h2>Miscellaneous notes</h2>
+            <p>${venueNote.body ? "Your venue note is saved separately and ready to edit." : "Jot down details, red flags, and anything you don’t want to forget."}</p>
+          </div>
+          <button type="button" class="button button-secondary button-small" data-open-notes>${venueNote.body ? "Edit notes" : "Add notes"}</button>
         </section>
         <p id="score-error" class="field-error" role="alert"></p>
         <div class="score-submit-bar">
@@ -555,11 +851,9 @@
         </div>
       </form>`;
     const form = document.getElementById("score-form");
-    const notes = document.getElementById("misc-notes");
-    notes.value = data.notes || "";
     elements.main.querySelector("[data-back-venues]").addEventListener("click", () => setScreen("venues"));
+    elements.main.querySelector("[data-open-notes]").addEventListener("click", () => openNotes(venueId));
     form.addEventListener("change", () => saveCurrentDraft(venueId, form));
-    notes.addEventListener("input", () => saveCurrentDraft(venueId, form));
     form.addEventListener("submit", (event) => {
       event.preventDefault();
       submitScore(venue, form);
@@ -572,13 +866,14 @@
       const selected = form.querySelector(`input[name="${factor.key}"]:checked`);
       if (selected) ratings[factor.key] = selected.value === "na" ? null : Number(selected.value);
     });
-    return { ratings, notes: form.elements.notes.value };
+    return { ratings };
   }
 
   function saveCurrentDraft(venueId, form) {
     const data = collectForm(form);
     setDraft(venueId, {
       ...data,
+      notes: getVenueNoteData(venueId).body,
       dirty: true,
       baseSubmitted: Boolean(state.submissions[venueId]),
       updatedAt: new Date().toISOString(),
@@ -601,13 +896,24 @@
       return;
     }
 
-    const payload = { personName: state.profile.name, venueId: venue.id, ratings: data.ratings, notes: data.notes };
+    const payload = {
+      personName: state.profile.name,
+      venueId: venue.id,
+      ratings: data.ratings,
+      notes: getVenueNoteData(venue.id).body,
+    };
     const operationId = `submission:${state.profile.key}:${venue.id}`;
     const submitButton = document.getElementById("submit-score");
     state.submitting = true;
     submitButton.disabled = true;
     submitButton.textContent = navigator.onLine ? "Sending…" : "Saving…";
-    setDraft(venue.id, { ...data, dirty: true, baseSubmitted: Boolean(state.submissions[venue.id]), updatedAt: new Date().toISOString() });
+    setDraft(venue.id, {
+      ...data,
+      notes: payload.notes,
+      dirty: true,
+      baseSubmitted: Boolean(state.submissions[venue.id]),
+      updatedAt: new Date().toISOString(),
+    });
 
     if (navigator.onLine) {
       try {
@@ -814,10 +1120,14 @@
       const draft = drafts[id];
       const submitted = state.submissions[venue.id];
       const record = queued || (draft?.dirty ? draft : null) || submitted;
-      if (!record) return;
-      const status = queued ? "Queued offline" : draft?.dirty ? "Draft" : "Synced";
+      const note = getVenueNoteData(venue.id);
+      if (!record && !note.body) return;
+      const noteQueued = Boolean(queuedNote(venue.id));
+      const status = record
+        ? queued ? "Rating queued" : draft?.dirty ? "Rating draft" : "Rating synced"
+        : noteQueued ? "Notes queued" : "Notes synced";
       const ratingValue = (factor) => {
-        if (!Object.prototype.hasOwnProperty.call(record.ratings || {}, factor)) return "";
+        if (!Object.prototype.hasOwnProperty.call(record?.ratings || {}, factor)) return "";
         return record.ratings[factor] === null ? "N/A" : record.ratings[factor];
       };
       rows.push([
@@ -826,8 +1136,8 @@
         venue.name,
         status,
         ...FACTORS.map((factor) => ratingValue(factor.key)),
-        record.notes || "",
-        record.updatedAt || new Date().toISOString(),
+        note.body || record?.notes || "",
+        note.updatedAt || record?.updatedAt || new Date().toISOString(),
       ]);
     });
     if (!rows.length) {
@@ -835,7 +1145,7 @@
       return;
     }
     const csvEscape = (value) => `"${String(value ?? "").replace(/"/g, '""')}"`;
-    const header = ["Person", "City", "Venue", "Status", ...FACTORS.map((factor) => factor.name), "Miscellaneous thoughts", "Updated"];
+    const header = ["Person", "City", "Venue", "Status", ...FACTORS.map((factor) => factor.name), "Venue notes", "Updated"];
     const csv = `\uFEFF${[header, ...rows].map((row) => row.map(csvEscape).join(",")).join("\r\n")}`;
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
     const link = document.createElement("a");
@@ -895,11 +1205,20 @@
     });
     window.addEventListener("online", () => {
       updateConnectionUI();
-      syncOutbox().then(() => refreshRemoteState({ silent: true }));
+      syncOutbox().then(() => refreshRemoteState({ silent: true, preserveEditor: state.screen === "notes" }));
     });
     window.addEventListener("offline", updateConnectionUI);
     document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "visible" && navigator.onLine) syncOutbox();
+      if (!navigator.onLine) return;
+      clearTimeout(state.noteSyncTimer);
+      syncOutbox();
+    });
+    window.addEventListener("pagehide", () => {
+      clearTimeout(state.noteSyncTimer);
+      syncOutbox();
+    });
+    window.addEventListener("pageshow", () => {
+      if (navigator.onLine) syncOutbox();
     });
   }
 

@@ -1,4 +1,4 @@
-const CACHE_NAME = "venue-scout-v5";
+const CACHE_NAME = "venue-scout-v6";
 const APP_SHELL = ["./", "./index.html", "./styles.css", "./app.js", "./config.js", "./manifest.webmanifest"];
 
 self.addEventListener("install", (event) => {
