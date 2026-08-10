@@ -542,6 +542,43 @@ code {
   -webkit-backdrop-filter: blur(18px);
 }
 
+.bottom-nav.has-admin {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.admin-notes-group {
+  margin-bottom: 1.4rem;
+}
+
+.admin-notes-group > h2 {
+  margin: 0 0 0.55rem;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.35rem;
+}
+
+.admin-note-card {
+  margin-bottom: 0.55rem;
+  padding: 0.95rem 1rem;
+  border: 1px solid rgba(59, 16, 40, 0.1);
+  border-radius: 18px;
+  background: var(--paper);
+  box-shadow: 0 6px 20px rgba(59, 16, 40, 0.06);
+}
+
+.admin-note-card h3 {
+  margin: 0 0 0.35rem;
+  color: var(--wine);
+  font-size: 0.78rem;
+}
+
+.admin-note-card p {
+  margin: 0;
+  color: var(--ink);
+  font-size: 0.86rem;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
 .nav-item {
   display: flex;
   min-height: 52px;

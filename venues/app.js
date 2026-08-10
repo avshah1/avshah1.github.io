@@ -97,6 +97,7 @@
     keepName: document.getElementById("keep-name"),
     main: document.getElementById("main-content"),
     bottomNav: document.getElementById("bottom-nav"),
+    adminNotesNav: document.getElementById("admin-notes-nav"),
     profileButton: document.getElementById("profile-button"),
     profileInitial: document.getElementById("profile-initial"),
     brandButton: document.getElementById("brand-button"),
@@ -119,6 +120,7 @@
     submissions: indexBy(cachedRemote.ownSubmissions || [], "venueId"),
     notes: indexBy(cachedRemote.ownNotes || [], "venueId"),
     results: indexBy(cachedRemote.results || [], "venueId"),
+    adminNotes: Array.isArray(cachedRemote.adminNotes) ? cachedRemote.adminNotes : [],
     method: cachedRemote.method || DEFAULT_METHOD,
     screen: "venues",
     selectedVenueId: null,
@@ -353,6 +355,7 @@
       ownSubmissions: Object.values(state.submissions),
       ownNotes: Object.values(state.notes),
       results: Object.values(state.results),
+      adminNotes: state.profile?.key === "anand" ? state.adminNotes : [],
       method: state.method,
     });
   }
@@ -468,6 +471,7 @@
     if (Array.isArray(data.ownSubmissions)) state.submissions = indexBy(data.ownSubmissions, "venueId");
     if (Array.isArray(data.ownNotes)) state.notes = indexBy(data.ownNotes, "venueId");
     if (Array.isArray(data.results)) state.results = indexBy(data.results, "venueId");
+    if (Array.isArray(data.adminNotes)) state.adminNotes = data.adminNotes;
     if (data.method) state.method = data.method;
     writeRemoteCache();
   }
@@ -559,11 +563,13 @@
       state.submissions = indexBy(personCache.ownSubmissions || [], "venueId");
       state.notes = indexBy(personCache.ownNotes || [], "venueId");
       state.results = indexBy(personCache.results || [], "venueId");
+      state.adminNotes = state.profile.key === "anand" && Array.isArray(personCache.adminNotes) ? personCache.adminNotes : [];
       state.method = personCache.method || DEFAULT_METHOD;
     } else {
       state.submissions = {};
       state.notes = {};
       state.results = {};
+      state.adminNotes = [];
       state.method = DEFAULT_METHOD;
     }
     writeJSON(STORAGE.profile, state.profile);
@@ -571,6 +577,8 @@
     ensureNoteDraftsQueued();
     elements.profileInitial.textContent = state.profile.name.charAt(0).toUpperCase();
     elements.profileButton.setAttribute("aria-label", `Switch person. Current person: ${state.profile.name}`);
+    elements.adminNotesNav.hidden = state.profile.key !== "anand";
+    elements.bottomNav.classList.toggle("has-admin", state.profile.key === "anand");
     elements.loginView.hidden = true;
     elements.appView.hidden = false;
     state.screen = "venues";
@@ -584,6 +592,9 @@
     clearTimeout(state.noteSyncTimer);
     syncOutbox();
     state.profile = null;
+    state.adminNotes = [];
+    elements.adminNotesNav.hidden = true;
+    elements.bottomNav.classList.remove("has-admin");
     state.selectedVenueId = null;
     try { localStorage.removeItem(STORAGE.profile); } catch { /* Ignore. */ }
     elements.appView.hidden = true;
@@ -624,7 +635,42 @@
     updateNavigation();
     if (state.screen === "score" && state.selectedVenueId) renderScorecard(state.selectedVenueId);
     else if (state.screen === "results") renderResults();
+    else if (state.screen === "admin-notes" && state.profile.key === "anand") renderAdminNotes();
     else renderVenues();
+  }
+
+  function renderAdminNotes() {
+    state.screen = "admin-notes";
+    const notes = [...state.adminNotes].filter((note) => String(note.body || "").trim()).sort((a, b) => {
+      const venueA = state.venues.find((venue) => venue.id === a.venueId);
+      const venueB = state.venues.find((venue) => venue.id === b.venueId);
+      return (venueA?.sortOrder ?? 999) - (venueB?.sortOrder ?? 999)
+        || String(a.personName || "").localeCompare(String(b.personName || ""));
+    });
+    const byVenue = new Map();
+    notes.forEach((note) => {
+      if (!byVenue.has(note.venueId)) byVenue.set(note.venueId, []);
+      byVenue.get(note.venueId).push(note);
+    });
+    const groups = [...byVenue.entries()].map(([venueId, venueNotes]) => {
+      const venue = state.venues.find((item) => item.id === venueId);
+      return `
+        <section class="admin-notes-group">
+          <h2>${escapeHTML(venue?.name || "Venue")}</h2>
+          ${venueNotes.map((note) => `
+            <article class="admin-note-card">
+              <h3>${escapeHTML(note.personName || note.personKey || "Guest")}</h3>
+              <p>${escapeHTML(note.body).replace(/\n/g, "<br>")}</p>
+            </article>`).join("")}
+        </section>`;
+    }).join("");
+    elements.main.innerHTML = `
+      <section class="results-heading"><h1>All notes</h1><button type="button" class="button button-secondary button-small" data-refresh-admin-notes>↻ Refresh</button></section>
+      ${groups || '<section class="result-lock"><h2>No notes yet</h2></section>'}`;
+    elements.main.querySelector("[data-refresh-admin-notes]")?.addEventListener("click", async (event) => {
+      event.currentTarget.disabled = true;
+      await refreshRemoteState({ silent: false });
+    });
   }
 
   function venueStatus(venueId) {
