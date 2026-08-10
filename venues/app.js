@@ -671,8 +671,7 @@
         <h2>The route</h2>
         <button type="button" class="button button-secondary button-small" data-add-venue>＋ Add venue</button>
       </div>
-      ${groups || '<div class="loading-card">No venues yet. Add the first stop.</div>'}
-      <aside class="route-note"><span aria-hidden="true">🙈</span><div><strong>No peeking.</strong> A venue’s group score stays hidden until your own score is safely synced.</div></aside>`;
+      ${groups || '<div class="loading-card">No venues yet.</div>'}`;
 
     elements.main.querySelectorAll("[data-rate-venue]").forEach((button) => {
       button.addEventListener("click", () => openScorecard(button.dataset.rateVenue));
@@ -787,7 +786,7 @@
         <div class="score-scale-hints" aria-hidden="true"><span>😬 1 · Not good</span><span>10 · Excellent 🤩</span></div>
         <div class="score-grid" role="radiogroup" aria-label="${factor.name}, 1 to 10 or not applicable">
           ${choices}
-          <label class="score-choice na-choice"><input type="radio" name="${factor.key}" value="na"${naChecked}><span>N/A · Can’t judge this one</span></label>
+          <label class="score-choice na-choice"><input type="radio" name="${factor.key}" value="na"${naChecked}><span>N/A</span></label>
         </div>
       </fieldset>`;
   }
@@ -802,9 +801,8 @@
     elements.main.innerHTML = `
       <button type="button" class="back-button" data-back-venues>← Back</button>
       <section class="score-heading">
-        <p class="kicker">${escapeHTML(venue.city)} · ${alreadySubmitted ? "Edit scorecard" : "Fresh scorecard"}</p>
+        <p class="kicker">${escapeHTML(venue.city)}</p>
         <h1>${escapeHTML(venue.name)}</h1>
-        ${alreadySubmitted ? "<p>You can edit and resubmit this rating at any time.</p>" : ""}
         <div class="score-progress"><div class="progress-track"><div id="score-progress-fill" class="progress-fill" style="width:${answered * 20}%"></div></div><span id="score-progress-copy">${answered} of 5 answered</span></div>
       </section>
       <nav class="score-jump-nav" aria-label="Scorecard sections">
@@ -934,14 +932,10 @@
     elements.main.innerHTML = `
       <section class="saved-panel">
         <div class="saved-burst" aria-hidden="true">${synced ? "✓" : "↻"}</div>
-        <p class="kicker">${synced ? "Score synced" : "Safe on this phone"}</p>
-        <h1>${synced ? "You’re in." : "We’ve got it."}</h1>
-        <p>${synced
-          ? `Your ${escapeHTML(venue.name)} score is on the shared list. You can edit it any time.`
-          : `Your ${escapeHTML(venue.name)} score is saved here and will join the shared list automatically when you’re back online.`}</p>
+        <h1>${synced ? "Saved" : "Saved offline"}</h1>
         <div class="saved-actions">
-          <button type="button" class="button button-secondary" data-saved-venues>Back to venues</button>
-          ${synced ? '<button type="button" class="button button-primary" data-saved-results>See the group view</button>' : `<button type="button" class="button button-primary" data-saved-edit>Edit this score</button>`}
+          <button type="button" class="button button-secondary" data-saved-venues>Back</button>
+          ${synced ? '<button type="button" class="button button-primary" data-saved-results>Results</button>' : `<button type="button" class="button button-primary" data-saved-edit>Edit</button>`}
         </div>
       </section>`;
     elements.main.querySelector("[data-saved-venues]").addEventListener("click", () => setScreen("venues"));
@@ -984,8 +978,8 @@
     const ranked = rankResults(Object.values(state.results));
     if (!ranked.length) {
       elements.main.innerHTML = `
-        <section class="results-heading"><p class="kicker">The family read</p><h1>No spoilers<br><em>yet.</em></h1><p>We keep everyone else’s opinion out of your head until you’ve made up your own.</p></section>
-        <section class="result-lock"><div class="lock-icon" aria-hidden="true">🙈</div><h2>Rate a venue to unlock it</h2><p>Once your score is synced, that venue’s average and agreement breakdown will appear here. Unrated venues stay hidden.</p><button type="button" class="button button-primary" style="margin-top:1rem" data-go-rate>Choose a venue</button></section>`;
+        <section class="results-heading"><h1>Results</h1></section>
+        <section class="result-lock"><div class="lock-icon" aria-hidden="true">🙈</div><h2>Rate a venue to see results</h2><button type="button" class="button button-primary" style="margin-top:1rem" data-go-rate>Venues</button></section>`;
       elements.main.querySelector("[data-go-rate]").addEventListener("click", () => setScreen("venues"));
       return;
     }
@@ -1016,11 +1010,11 @@
     }).join("");
 
     elements.main.innerHTML = `
-      <section class="results-heading"><p class="kicker">The family read · live</p><h1>Front-<br><em>runners.</em></h1><p>Only venues you’ve already scored appear here. Tap any venue for its five-factor breakdown.</p><button type="button" class="button button-secondary button-small" style="margin-top:0.85rem" data-refresh-results>↻ Refresh</button></section>
+      <section class="results-heading"><h1>Results</h1><button type="button" class="button button-secondary button-small" style="margin-top:0.85rem" data-refresh-results>↻ Refresh</button></section>
       <section class="podium" aria-label="Current top three">${podium}</section>
-      <h2 class="results-list-title">All unlocked venues</h2>
+      <h2 class="results-list-title">All venues</h2>
       ${cards}
-      <aside class="method-note"><strong>How v1 works:</strong> ${escapeHTML(state.method)} Agreement is based on score dispersion; with sparse data we say it’s too early. Raw ratings stay intact so Sara and Anand can change the formula later.</aside>`;
+      <details class="method-note"><summary>How scores work</summary><p>${escapeHTML(state.method)} Agreement is based on score dispersion.</p></details>`;
     elements.main.querySelector("[data-refresh-results]").addEventListener("click", async (event) => {
       event.currentTarget.disabled = true;
       await syncOutbox();
