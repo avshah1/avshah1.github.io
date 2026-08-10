@@ -67,6 +67,7 @@
     { id: "jaipur-anantara-jewel-bagh", name: "Anantara Jewel Bagh", city: "Jaipur", sortOrder: 10 },
     { id: "jaipur-taj-devi-ratn", name: "Taj Devi Ratn", city: "Jaipur", sortOrder: 20 },
     { id: "jaipur-itc-rajputana", name: "ITC Rajputana", city: "Jaipur", sortOrder: 30 },
+    { id: "jaipur-leela-palace", name: "The Leela Palace Jaipur", city: "Jaipur", sortOrder: 32 },
     { id: "kumbhalgarh-raajsa-resort", name: "Raajsa Resort Kumbhalgarh", city: "Kumbhalgarh", sortOrder: 35 },
     { id: "udaipur-trident", name: "Trident, Udaipur", city: "Udaipur", sortOrder: 40 },
     { id: "udaipur-taj-lalit-bagh", name: "Taj Lalit Bagh", city: "Udaipur", sortOrder: 50 },
