@@ -1,5 +1,5 @@
-const CACHE_NAME = "venue-scout-v12";
-const APP_SHELL = ["./", "./index.html", "./styles.css?v=20260810-3", "./app.js?v=20260810-5", "./config.js", "./manifest.webmanifest"];
+const CACHE_NAME = "venue-scout-v13";
+const APP_SHELL = ["./", "./index.html", "./styles.css?v=20260810-4", "./app.js?v=20260810-6", "./config.js", "./manifest.webmanifest"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)).then(() => self.skipWaiting()));

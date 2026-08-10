@@ -680,6 +680,21 @@
     return { label: "Not started", className: "", action: "Rate" };
   }
 
+  function joinNames(names) {
+    if (names.length < 2) return names[0] || "";
+    if (names.length === 2) return `${names[0]} & ${names[1]}`;
+    return `${names.slice(0, -1).join(", ")} & ${names.at(-1)}`;
+  }
+
+  function waitingText(result) {
+    if (!result || typeof result.waitingCount !== "number") return "";
+    if (result.waitingCount === 0) return "Everyone has rated";
+    if (Array.isArray(result.waitingNames) && result.waitingNames.length <= 3) {
+      return `Waiting on ${joinNames(result.waitingNames.map((name) => `${name}ji`))}`;
+    }
+    return `Waiting on ${result.waitingCount} people`;
+  }
+
   function renderVenues() {
     state.screen = "venues";
     const sorted = [...state.venues].sort((a, b) => (a.sortOrder ?? 999) - (b.sortOrder ?? 999) || a.name.localeCompare(b.name));
@@ -689,12 +704,14 @@
     const groups = cities.map((city) => {
       const cards = sorted.filter((venue) => venue.city === city).map((venue, index) => {
         const status = venueStatus(venue.id);
+        const waiting = waitingText(state.results[venue.id]);
         return `
           <article class="venue-card">
             <span class="venue-number" aria-hidden="true">${String(index + 1).padStart(2, "0")}</span>
             <div class="venue-info">
               <h3>${escapeHTML(venue.name)}</h3>
               <p class="venue-meta"><span class="status-dot ${status.className}"></span>${escapeHTML(status.label)}</p>
+              ${waiting ? `<p class="venue-waiting">${escapeHTML(waiting)}</p>` : ""}
             </div>
             <div class="venue-actions">
               <button class="venue-action notes-action ${getVenueNoteData(venue.id).body ? "has-notes" : ""}" type="button" data-notes-venue="${escapeHTML(venue.id)}">Notes</button>
@@ -1022,11 +1039,12 @@
 
   function renderResults() {
     state.screen = "results";
-    const ranked = rankResults(Object.values(state.results));
-    if (!ranked.length) {
+    const allResults = Object.values(state.results);
+    const ranked = rankResults(allResults);
+    if (!allResults.length) {
       elements.main.innerHTML = `
         <section class="results-heading"><h1>Results</h1></section>
-        <section class="result-lock"><div class="lock-icon" aria-hidden="true">🙈</div><h2>Rate a venue to see results</h2><button type="button" class="button button-primary" style="margin-top:1rem" data-go-rate>Venues</button></section>`;
+        <section class="result-lock"><h2>No ratings yet</h2><button type="button" class="button button-primary" style="margin-top:1rem" data-go-rate>Venues</button></section>`;
       elements.main.querySelector("[data-go-rate]").addEventListener("click", () => setScreen("venues"));
       return;
     }
@@ -1041,8 +1059,21 @@
         </article>`;
     }).join("");
 
-    const cards = ranked.map((result) => {
+    const cards = allResults.sort((a, b) => {
+      const venueA = state.venues.find((venue) => venue.id === a.venueId);
+      const venueB = state.venues.find((venue) => venue.id === b.venueId);
+      return (venueA?.sortOrder ?? 999) - (venueB?.sortOrder ?? 999);
+    }).map((result) => {
       const venue = state.venues.find((item) => item.id === result.venueId);
+      if (typeof result.average !== "number") {
+        return `
+          <article class="result-card result-card-waiting">
+            <div class="result-main">
+              <h3>${escapeHTML(venue?.name || "Venue")}</h3>
+              <div class="result-meta"><span>${escapeHTML(waitingText(result))}</span><span>${result.respondentCount || 0} rated</span></div>
+            </div>
+          </article>`;
+      }
       return `
         <details class="result-card">
           <summary>
@@ -1058,7 +1089,7 @@
 
     elements.main.innerHTML = `
       <section class="results-heading"><h1>Results</h1><button type="button" class="button button-secondary button-small" style="margin-top:0.85rem" data-refresh-results>↻ Refresh</button></section>
-      <section class="podium" aria-label="Current top three">${podium}</section>
+      ${podium ? `<section class="podium" aria-label="Current top three">${podium}</section>` : '<section class="result-lock"><h2>Scores appear after 4 ratings</h2></section>'}
       <h2 class="results-list-title">All venues</h2>
       ${cards}
       <details class="method-note"><summary>How scores work</summary><p>${escapeHTML(state.method)} Agreement is based on score dispersion.</p></details>`;

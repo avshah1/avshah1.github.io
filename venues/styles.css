@@ -761,6 +761,13 @@ code {
   font-weight: 720;
 }
 
+.venue-waiting {
+  margin: 0.2rem 0 0;
+  color: var(--muted);
+  font-size: 0.68rem;
+  line-height: 1.35;
+}
+
 .status-dot {
   width: 6px;
   height: 6px;
@@ -1332,6 +1339,12 @@ code {
   margin: 0;
   font-family: Georgia, "Times New Roman", serif;
   font-size: 1.55rem;
+}
+
+.result-card-waiting {
+  display: flex;
+  align-items: center;
+  padding: 1rem;
 }
 
 .result-lock p {
