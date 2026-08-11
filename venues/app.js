@@ -51,6 +51,7 @@
     "Unique things that are possible here?",
   ];
   const RETIRED_VENUE_IDS = new Set(["jaipur-shiv-vilas"]);
+  const ADMIN_PROFILE_KEYS = new Set(["anand", "sara"]);
   const KNOWN_PEOPLE = [
     { name: "Anand", aliases: ["Anand", "Anand Shah"] },
     { name: "Sara", aliases: ["Sara"] },
@@ -84,6 +85,7 @@
     state: "venue-scout:v1:remote-state",
   };
   const DEFAULT_METHOD = "Each factor is weighted equally. N/A scores are excluded; available factor averages are averaged for the overall score.";
+  const ADMIN_PIN_STORAGE = "venue-scout:admin-pin";
 
   const elements = {
     loginView: document.getElementById("login-view"),
@@ -121,6 +123,10 @@
     notes: indexBy(cachedRemote.ownNotes || [], "venueId"),
     results: indexBy(cachedRemote.results || [], "venueId"),
     adminNotes: Array.isArray(cachedRemote.adminNotes) ? cachedRemote.adminNotes : [],
+    adminPin: readAdminPin(),
+    adminParticipation: null,
+    adminExport: null,
+    adminMutating: false,
     method: cachedRemote.method || DEFAULT_METHOD,
     screen: "venues",
     selectedVenueId: null,
@@ -132,6 +138,21 @@
     noteSyncTimer: null,
     storageError: false,
   };
+
+  function readAdminPin() {
+    try { return sessionStorage.getItem(ADMIN_PIN_STORAGE) || ""; } catch { return ""; }
+  }
+
+  function isAdminProfile(profile = state.profile) {
+    return Boolean(profile?.key && ADMIN_PROFILE_KEYS.has(profile.key));
+  }
+
+  function saveAdminPin(value) {
+    try {
+      if (value) sessionStorage.setItem(ADMIN_PIN_STORAGE, value);
+      else sessionStorage.removeItem(ADMIN_PIN_STORAGE);
+    } catch { /* Session storage may be unavailable. */ }
+  }
 
   function readJSON(key, fallback) {
     try {
@@ -355,7 +376,7 @@
       ownSubmissions: Object.values(state.submissions),
       ownNotes: Object.values(state.notes),
       results: Object.values(state.results),
-      adminNotes: state.profile?.key === "anand" ? state.adminNotes : [],
+      adminNotes: isAdminProfile() ? state.adminNotes : [],
       method: state.method,
     });
   }
@@ -563,7 +584,7 @@
       state.submissions = indexBy(personCache.ownSubmissions || [], "venueId");
       state.notes = indexBy(personCache.ownNotes || [], "venueId");
       state.results = indexBy(personCache.results || [], "venueId");
-      state.adminNotes = state.profile.key === "anand" && Array.isArray(personCache.adminNotes) ? personCache.adminNotes : [];
+      state.adminNotes = isAdminProfile() && Array.isArray(personCache.adminNotes) ? personCache.adminNotes : [];
       state.method = personCache.method || DEFAULT_METHOD;
     } else {
       state.submissions = {};
@@ -577,8 +598,13 @@
     ensureNoteDraftsQueued();
     elements.profileInitial.textContent = state.profile.name.charAt(0).toUpperCase();
     elements.profileButton.setAttribute("aria-label", `Switch person. Current person: ${state.profile.name}`);
-    elements.adminNotesNav.hidden = state.profile.key !== "anand";
-    elements.bottomNav.classList.toggle("has-admin", state.profile.key === "anand");
+    elements.adminNotesNav.hidden = !isAdminProfile();
+    elements.bottomNav.classList.toggle("has-admin", isAdminProfile());
+    if (!isAdminProfile()) {
+      state.adminPin = "";
+      state.adminParticipation = null;
+      state.adminExport = null;
+    }
     elements.loginView.hidden = true;
     elements.appView.hidden = false;
     state.screen = "venues";
@@ -593,6 +619,10 @@
     syncOutbox();
     state.profile = null;
     state.adminNotes = [];
+    state.adminPin = "";
+    state.adminParticipation = null;
+    state.adminExport = null;
+    saveAdminPin("");
     elements.adminNotesNav.hidden = true;
     elements.bottomNav.classList.remove("has-admin");
     state.selectedVenueId = null;
@@ -621,7 +651,7 @@
   }
 
   function updateNavigation() {
-    const navigationScreen = state.screen === "score" ? "venues" : state.screen;
+    const navigationScreen = state.screen === "score" ? "venues" : state.screen === "admin" ? "admin-notes" : state.screen;
     elements.bottomNav.querySelectorAll("[data-screen]").forEach((button) => {
       const active = button.dataset.screen === navigationScreen;
       button.classList.toggle("is-active", active);
@@ -635,7 +665,8 @@
     updateNavigation();
     if (state.screen === "score" && state.selectedVenueId) renderScorecard(state.selectedVenueId);
     else if (state.screen === "results") renderResults();
-    else if (state.screen === "admin-notes" && state.profile.key === "anand") renderAdminNotes();
+    else if (state.screen === "admin-notes" && isAdminProfile()) renderAdminNotes();
+    else if (state.screen === "admin" && isAdminProfile()) renderAdmin();
     else renderVenues();
   }
 
@@ -656,7 +687,7 @@
       const venue = state.venues.find((item) => item.id === venueId);
       return `
         <section class="admin-notes-group">
-          <h2>${escapeHTML(venue?.name || "Venue")}</h2>
+          <h2>${escapeHTML(venue?.name || venueId)}</h2>
           ${venueNotes.map((note) => `
             <article class="admin-note-card">
               <h3>${escapeHTML(note.personName || note.personKey || "Guest")}</h3>
@@ -665,12 +696,322 @@
         </section>`;
     }).join("");
     elements.main.innerHTML = `
-      <section class="results-heading"><h1>All notes</h1><button type="button" class="button button-secondary button-small" data-refresh-admin-notes>↻ Refresh</button></section>
+      <section class="results-heading"><h1>All notes</h1><div class="heading-actions"><button type="button" class="button button-secondary button-small" data-refresh-admin-notes>↻ Refresh</button><button type="button" class="button button-secondary button-small" data-open-admin>Admin</button></div></section>
       ${groups || '<section class="result-lock"><h2>No notes yet</h2></section>'}`;
     elements.main.querySelector("[data-refresh-admin-notes]")?.addEventListener("click", async (event) => {
       event.currentTarget.disabled = true;
       await refreshRemoteState({ silent: false });
     });
+    elements.main.querySelector("[data-open-admin]")?.addEventListener("click", () => setScreen("admin"));
+  }
+
+  function adminFetch(path, options = {}) {
+    return apiFetch(path, {
+      ...options,
+      headers: {
+        ...(options.headers || {}),
+        "X-Admin-Name": state.profile?.name || "",
+        "X-Admin-Pin": state.adminPin,
+      },
+    });
+  }
+
+  function clearAdminSession() {
+    state.adminPin = "";
+    state.adminParticipation = null;
+    state.adminExport = null;
+    saveAdminPin("");
+  }
+
+  async function loadAdminData() {
+    const [participation, fullExport] = await Promise.all([
+      adminFetch("/api/admin/participation"),
+      adminFetch("/api/admin/export"),
+    ]);
+    state.adminParticipation = participation;
+    state.adminExport = fullExport;
+  }
+
+  function adminVenueName(venueId) {
+    return state.adminExport?.data?.venues?.find((venue) => venue.id === venueId)?.name
+      || state.venues.find((venue) => venue.id === venueId)?.name
+      || venueId;
+  }
+
+  function adminField(row, camel, snake) {
+    return row?.[camel] ?? row?.[snake] ?? "";
+  }
+
+  function adminLoginMarkup(error = "") {
+    elements.main.innerHTML = `
+      <section class="admin-login">
+        <button type="button" class="plain-back" data-admin-back>← Back</button>
+        <h1>Admin</h1>
+        <form data-admin-login>
+          <label for="admin-pin">Admin PIN</label>
+          <input id="admin-pin" name="pin" type="password" inputmode="numeric" autocomplete="off" required>
+          <p class="field-error" role="alert">${escapeHTML(error)}</p>
+          <button type="submit" class="button button-primary button-block">Unlock</button>
+        </form>
+      </section>`;
+    elements.main.querySelector("[data-admin-back]").addEventListener("click", () => setScreen("admin-notes"));
+    elements.main.querySelector("[data-admin-login]").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      state.adminPin = String(new FormData(event.currentTarget).get("pin") || "").trim();
+      saveAdminPin(state.adminPin);
+      elements.main.querySelector("button[type=submit]").disabled = true;
+      try {
+        await loadAdminData();
+        renderAdmin();
+      } catch (error) {
+        clearAdminSession();
+        adminLoginMarkup(error.status === 401 || error.status === 403 ? "Wrong PIN." : "Could not load admin tools.");
+      }
+    });
+  }
+
+  function participationMarkup(data) {
+    return (data?.venues || []).map((venue) => `
+      <div class="admin-row">
+        <div><strong>${escapeHTML(venue.venueName)}</strong><small>${escapeHTML(venue.city || "")}</small></div>
+        <span>${venue.raterCount} rated · ${venue.noteCount} notes</span>
+      </div>`).join("");
+  }
+
+  function venueControlsMarkup() {
+    const retiredIds = new Set((state.adminExport?.data?.retiredVenues || []).map((row) => adminField(row, "venueId", "venue_id")));
+    return [...state.venues].sort((a, b) => (a.sortOrder ?? 999) - (b.sortOrder ?? 999)).map((venue, index, list) => `
+      <div class="admin-row admin-venue-row">
+        <div><strong>${escapeHTML(venue.name)}</strong><small>${escapeHTML(venue.city)}</small></div>
+        <div class="admin-row-actions">
+          <button type="button" data-admin-move="${escapeHTML(venue.id)}" data-direction="-1" aria-label="Move ${escapeHTML(venue.name)} up" ${index === 0 ? "disabled" : ""}>↑</button>
+          <button type="button" data-admin-move="${escapeHTML(venue.id)}" data-direction="1" aria-label="Move ${escapeHTML(venue.name)} down" ${index === list.length - 1 ? "disabled" : ""}>↓</button>
+          <button type="button" data-admin-retire="${escapeHTML(venue.id)}" ${retiredIds.has(venue.id) ? "disabled" : ""}>Retire</button>
+        </div>
+      </div>`).join("");
+  }
+
+  function ratingsMarkup() {
+    const submissions = state.adminExport?.data?.submissions || [];
+    return submissions.map((row) => {
+      const personName = adminField(row, "personName", "person_name");
+      const personKey = adminField(row, "personKey", "person_key");
+      const venueId = adminField(row, "venueId", "venue_id");
+      return `
+      <div class="admin-row">
+        <div><strong>${escapeHTML(personName)}</strong><small>${escapeHTML(adminVenueName(venueId))}</small></div>
+        <button type="button" class="admin-danger" data-admin-remove-rating data-person-key="${escapeHTML(personKey)}" data-venue-id="${escapeHTML(venueId)}">Remove</button>
+      </div>`;
+    }).join("") || '<p class="admin-empty">No ratings yet.</p>';
+  }
+
+  function deletedRatingsMarkup() {
+    const rows = (state.adminExport?.data?.deletedRatings || []).filter((row) => !adminField(row, "restoredAt", "restored_at"));
+    return rows.map((row) => {
+      const id = row.id;
+      const personKey = adminField(row, "personKey", "person_key");
+      const venueId = adminField(row, "venueId", "venue_id");
+      return `
+      <div class="admin-row">
+        <div><strong>${escapeHTML(personKey)}</strong><small>${escapeHTML(adminVenueName(venueId))}</small></div>
+        <button type="button" data-admin-restore-rating="${escapeHTML(id)}">Restore</button>
+      </div>`;
+    }).join("") || '<p class="admin-empty">Nothing to restore.</p>';
+  }
+
+  function auditMarkup() {
+    return [...(state.adminExport?.data?.adminAuditLog || [])].reverse().slice(0, 20).map((row) => `
+      <div class="admin-row">
+        <div><strong>${escapeHTML(row.action)}</strong><small>${escapeHTML(adminField(row, "targetKey", "target_key"))}</small></div>
+        <span>${escapeHTML(String(adminField(row, "createdAt", "created_at")).slice(0, 16))}</span>
+      </div>`).join("") || '<p class="admin-empty">No admin changes yet.</p>';
+  }
+
+  function adminDashboardMarkup() {
+    const totals = state.adminParticipation?.totals || {};
+    return `
+      <section class="admin-heading">
+        <button type="button" class="plain-back" data-admin-back>← Back</button>
+        <div><p class="kicker">Admin only</p><h1>Admin</h1></div>
+        <button type="button" class="button button-secondary button-small" data-admin-lock>Lock</button>
+      </section>
+      <div class="admin-summary">
+        <div><strong>${totals.people || 0}</strong><span>People</span></div>
+        <div><strong>${totals.ratings || 0}</strong><span>Ratings</span></div>
+        <div><strong>${totals.notes || 0}</strong><span>Notes</span></div>
+      </div>
+      <button type="button" class="button button-primary button-block" data-admin-download>Download full backup</button>
+      <details class="admin-section" open><summary>Participation</summary><div class="admin-section-body">${participationMarkup(state.adminParticipation)}</div></details>
+      <details class="admin-section"><summary>Venues</summary><div class="admin-section-body">
+        <form class="admin-form" data-admin-add-venue>
+          <label for="admin-venue-name">Venue name</label>
+          <input id="admin-venue-name" name="name" placeholder="Venue name" required>
+          <label for="admin-venue-city">City</label>
+          <input id="admin-venue-city" name="city" placeholder="City" required>
+          <button type="submit" class="button button-secondary">Add venue</button>
+        </form>
+        ${venueControlsMarkup()}
+      </div></details>
+      <details class="admin-section"><summary>Merge a name</summary><div class="admin-section-body">
+        <form class="admin-form" data-admin-alias>
+          <label for="admin-alias-name">Name to merge</label>
+          <input id="admin-alias-name" name="alias" placeholder="Name to merge" required>
+          <label for="admin-canonical-name">Keep as</label>
+          <input id="admin-canonical-name" name="canonical" placeholder="Keep as (e.g. Vipul)" required>
+          <button type="submit" class="button button-secondary">Merge</button>
+        </form>
+      </div></details>
+      <details class="admin-section"><summary>Ratings</summary><div class="admin-section-body">${ratingsMarkup()}<h3 class="admin-subheading">Removed ratings</h3>${deletedRatingsMarkup()}</div></details>
+      <details class="admin-section"><summary>Audit log</summary><div class="admin-section-body">${auditMarkup()}</div></details>`;
+  }
+
+  async function runAdminMutation(path, payload, successMessage) {
+    if (state.adminMutating) return;
+    state.adminMutating = true;
+    elements.main.querySelectorAll("button, input").forEach((control) => { control.disabled = true; });
+    try {
+      await adminFetch(path, { method: "POST", body: JSON.stringify({ ...payload, mutationId: makeMutationId() }) });
+      await Promise.all([loadAdminData(), refreshRemoteState({ silent: true })]);
+      showToast(successMessage);
+      state.adminMutating = false;
+      renderAdmin();
+    } catch (error) {
+      state.adminMutating = false;
+      if (error.status === 401 || error.status === 403) {
+        clearAdminSession();
+        adminLoginMarkup("Admin session expired.");
+      } else {
+        showToast(error.message || "Could not save that admin change.");
+        renderAdmin();
+      }
+    }
+  }
+
+  function bindAdminDashboard() {
+    elements.main.querySelector("[data-admin-back]").addEventListener("click", () => setScreen("admin-notes"));
+    elements.main.querySelector("[data-admin-lock]").addEventListener("click", () => {
+      clearAdminSession();
+      renderAdmin();
+    });
+    elements.main.querySelector("[data-admin-download]").addEventListener("click", async (event) => {
+      event.currentTarget.disabled = true;
+      try {
+        const data = await adminFetch("/api/admin/export");
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = `venue-admin-backup-${new Date().toISOString().slice(0, 10)}.json`;
+        link.click();
+        setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+        event.currentTarget.disabled = false;
+      } catch (error) {
+        if (error.status === 401 || error.status === 403) {
+          clearAdminSession();
+          adminLoginMarkup("Admin session expired.");
+        } else {
+          showToast("Could not download the backup.");
+          event.currentTarget.disabled = false;
+        }
+      }
+    });
+    elements.main.querySelector("[data-admin-add-venue]").addEventListener("submit", (event) => {
+      event.preventDefault();
+      const form = new FormData(event.currentTarget);
+      const name = cleanName(form.get("name"));
+      const city = cleanName(form.get("city"));
+      const slug = `${normalizeKey(city) || "city"}-${normalizeKey(name) || "venue"}`.slice(0, 94).replace(/-+$/, "");
+      const id = `venue-${slug}`;
+      runAdminMutation("/api/admin/venues", {
+        action: "add",
+        venue: { id, name, city },
+        confirmation: `ADD VENUE ${id}`,
+      }, "Venue added.");
+    });
+    elements.main.querySelectorAll("[data-admin-move]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const ordered = [...state.venues].sort((a, b) => (a.sortOrder ?? 999) - (b.sortOrder ?? 999));
+        const index = ordered.findIndex((venue) => venue.id === button.dataset.adminMove);
+        const next = index + Number(button.dataset.direction);
+        if (index < 0 || next < 0 || next >= ordered.length) return;
+        [ordered[index], ordered[next]] = [ordered[next], ordered[index]];
+        runAdminMutation("/api/admin/venues", {
+          action: "reorder",
+          venueIds: ordered.map((venue) => venue.id),
+          confirmation: "REORDER VENUES",
+        }, "Venue order saved.");
+      });
+    });
+    elements.main.querySelectorAll("[data-admin-retire]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const venueId = button.dataset.adminRetire;
+        if (!window.confirm(`Retire ${adminVenueName(venueId)}? Existing ratings and notes will be preserved.`)) return;
+        runAdminMutation("/api/admin/venues", {
+          action: "retire",
+          venueId,
+          reason: "Retired from admin panel",
+          confirmation: `RETIRE ${venueId}`,
+        }, "Venue retired.");
+      });
+    });
+    elements.main.querySelector("[data-admin-alias]").addEventListener("submit", (event) => {
+      event.preventDefault();
+      const form = new FormData(event.currentTarget);
+      const aliasKey = normalizeKey(form.get("alias"));
+      const canonicalKey = normalizeKey(form.get("canonical"));
+      if (!window.confirm(`Merge ${aliasKey} into ${canonicalKey}? The newest entry for each venue will be kept.`)) return;
+      runAdminMutation("/api/admin/aliases", {
+        aliasKey,
+        canonicalKey,
+        confirmation: `MERGE ${aliasKey} INTO ${canonicalKey}`,
+      }, "Name merged.");
+    });
+    elements.main.querySelectorAll("[data-admin-remove-rating]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const personKey = button.dataset.personKey;
+        const venueId = button.dataset.venueId;
+        if (!window.confirm(`Remove ${personKey}'s rating for ${adminVenueName(venueId)}? You can restore it later.`)) return;
+        runAdminMutation("/api/admin/ratings", {
+          action: "remove",
+          personKey,
+          venueId,
+          reason: "Removed from admin panel",
+          confirmation: `REMOVE RATING ${personKey} ${venueId}`,
+        }, "Rating removed.");
+      });
+    });
+    elements.main.querySelectorAll("[data-admin-restore-rating]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const tombstoneId = button.dataset.adminRestoreRating;
+        runAdminMutation("/api/admin/ratings", {
+          action: "restore",
+          tombstoneId,
+          confirmation: `RESTORE RATING ${tombstoneId}`,
+        }, "Rating restored.");
+      });
+    });
+  }
+
+  function renderAdmin() {
+    state.screen = "admin";
+    if (!state.adminPin) {
+      adminLoginMarkup();
+      return;
+    }
+    if (!state.adminParticipation || !state.adminExport) {
+      elements.main.innerHTML = '<div class="loading-card">Loading admin tools<span class="loading-dots"></span></div>';
+      loadAdminData().then(renderAdmin).catch((error) => {
+        if (error.status === 401 || error.status === 403) {
+          clearAdminSession();
+          adminLoginMarkup("Wrong PIN.");
+        } else {
+          elements.main.innerHTML = '<section class="result-lock"><h2>Could not load admin tools</h2><button type="button" class="button button-secondary" data-admin-retry>Retry</button></section>';
+          elements.main.querySelector("[data-admin-retry]").addEventListener("click", renderAdmin);
+        }
+      });
+      return;
+    }
+    elements.main.innerHTML = adminDashboardMarkup();
+    bindAdminDashboard();
   }
 
   function venueStatus(venueId) {
