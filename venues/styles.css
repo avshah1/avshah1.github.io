@@ -909,6 +909,16 @@ code {
   background: var(--saffron);
 }
 
+.venue-card.needs-review {
+  border-color: rgba(209, 117, 24, 0.42);
+  background: #fff8e8;
+  box-shadow: 0 8px 25px rgba(184, 93, 16, 0.1);
+}
+
+.venue-card.needs-review::before {
+  background: #d17518;
+}
+
 .venue-number {
   display: grid;
   width: 46px;
@@ -953,6 +963,14 @@ code {
   line-height: 1.35;
 }
 
+.review-nudge {
+  margin: 0.22rem 0 0;
+  color: #a64f09;
+  font-size: 0.69rem;
+  font-weight: 850;
+  line-height: 1.3;
+}
+
 .status-dot {
   width: 6px;
   height: 6px;
@@ -980,7 +998,7 @@ code {
 .venue-actions {
   display: grid;
   grid-column: 1 / -1;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.5rem;
 }
 
@@ -999,6 +1017,120 @@ code {
   border: 1px solid rgba(59, 16, 40, 0.15);
   background: white;
   color: var(--wine);
+}
+
+.venue-action.results-action {
+  border: 1px solid rgba(181, 104, 19, 0.2);
+  background: #f8e5bd;
+  color: var(--wine);
+}
+
+.venue-result-heading {
+  padding: 0.2rem 0 1.1rem;
+}
+
+.venue-result-heading h1 {
+  margin: 0.45rem 0 0;
+  color: var(--wine);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(2rem, 10vw, 3.5rem);
+  font-weight: 600;
+  letter-spacing: -0.045em;
+  line-height: 0.98;
+}
+
+.venue-result-hero {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  border: 1px solid rgba(59, 16, 40, 0.1);
+  border-radius: 22px;
+  background: var(--paper);
+  box-shadow: var(--shadow);
+}
+
+.venue-result-score {
+  display: flex;
+  align-items: baseline;
+  color: var(--wine);
+}
+
+.venue-result-score strong {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 3rem;
+  line-height: 1;
+}
+
+.venue-result-score span {
+  font-size: 0.7rem;
+  font-weight: 850;
+}
+
+.venue-result-hero p {
+  margin: 0.55rem 0 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.venue-factor-section,
+.overheard-section {
+  margin-top: 1rem;
+  padding: 1rem;
+  border: 1px solid rgba(59, 16, 40, 0.1);
+  border-radius: 22px;
+  background: var(--paper);
+}
+
+.venue-factor-section > h2,
+.overheard-section > h2 {
+  margin: 0 0 0.8rem;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.45rem;
+}
+
+.overheard-section > h2 {
+  margin-top: 0.25rem;
+}
+
+.overheard-summary {
+  margin: 0 0 0.8rem;
+  color: var(--ink);
+  font-size: 0.86rem;
+  line-height: 1.55;
+}
+
+.tour-quote {
+  margin: 0.65rem 0 0;
+  padding: 0.85rem;
+  border-left: 3px solid var(--saffron);
+  border-radius: 0 14px 14px 0;
+  background: #fff8e8;
+}
+
+.tour-quote p {
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 0.94rem;
+  line-height: 1.5;
+}
+
+.tour-quote cite {
+  display: block;
+  margin-top: 0.45rem;
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-style: normal;
+  font-weight: 800;
+}
+
+.venue-result-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem;
+  margin-top: 1rem;
 }
 
 .route-note {

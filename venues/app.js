@@ -130,6 +130,7 @@
     method: cachedRemote.method || DEFAULT_METHOD,
     screen: "venues",
     selectedVenueId: null,
+    selectedResultVenueId: null,
     loading: false,
     syncing: false,
     submitting: false,
@@ -645,13 +646,17 @@
     }
     state.screen = screen;
     if (screen !== "score") state.selectedVenueId = null;
+    if (screen !== "venue-result") state.selectedResultVenueId = null;
     renderCurrentScreen();
     elements.main.focus({ preventScroll: true });
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   function updateNavigation() {
-    const navigationScreen = state.screen === "score" ? "venues" : state.screen === "admin" ? "admin-notes" : state.screen;
+    const navigationScreen = state.screen === "score" ? "venues"
+      : state.screen === "venue-result" ? "results"
+      : state.screen === "admin" ? "admin-notes"
+      : state.screen;
     elements.bottomNav.querySelectorAll("[data-screen]").forEach((button) => {
       const active = button.dataset.screen === navigationScreen;
       button.classList.toggle("is-active", active);
@@ -664,6 +669,7 @@
     if (!state.profile || elements.appView.hidden) return;
     updateNavigation();
     if (state.screen === "score" && state.selectedVenueId) renderScorecard(state.selectedVenueId);
+    else if (state.screen === "venue-result" && state.selectedResultVenueId) renderVenueResult(state.selectedResultVenueId);
     else if (state.screen === "results") renderResults();
     else if (state.screen === "admin-notes" && isAdminProfile()) renderAdminNotes();
     else if (state.screen === "admin" && isAdminProfile()) renderAdmin();
@@ -1045,18 +1051,22 @@
     const groups = cities.map((city) => {
       const cards = sorted.filter((venue) => venue.city === city).map((venue, index) => {
         const status = venueStatus(venue.id);
-        const waiting = waitingText(state.results[venue.id]);
+        const result = state.results[venue.id];
+        const waiting = waitingText(result);
+        const needsReview = Boolean(result?.discussionStarted && !state.submissions[venue.id] && !queuedSubmission(venue.id));
         return `
-          <article class="venue-card">
+          <article class="venue-card ${needsReview ? "needs-review" : ""}">
             <span class="venue-number" aria-hidden="true">${String(index + 1).padStart(2, "0")}</span>
             <div class="venue-info">
               <h3>${escapeHTML(venue.name)}</h3>
               <p class="venue-meta"><span class="status-dot ${status.className}"></span>${escapeHTML(status.label)}</p>
+              ${needsReview ? '<p class="review-nudge">You haven’t submitted a review yet</p>' : ""}
               ${waiting ? `<p class="venue-waiting">${escapeHTML(waiting)}</p>` : ""}
             </div>
             <div class="venue-actions">
               <button class="venue-action notes-action ${getVenueNoteData(venue.id).body ? "has-notes" : ""}" type="button" data-notes-venue="${escapeHTML(venue.id)}">Notes</button>
               <button class="venue-action ${status.action === "Edit" ? "edit" : ""}" type="button" data-rate-venue="${escapeHTML(venue.id)}">${status.action}</button>
+              <button class="venue-action results-action" type="button" data-results-venue="${escapeHTML(venue.id)}">Results</button>
             </div>
           </article>`;
       }).join("");
@@ -1084,11 +1094,22 @@
     elements.main.querySelectorAll("[data-notes-venue]").forEach((button) => {
       button.addEventListener("click", () => openNotes(button.dataset.notesVenue));
     });
+    elements.main.querySelectorAll("[data-results-venue]").forEach((button) => {
+      button.addEventListener("click", () => openVenueResults(button.dataset.resultsVenue));
+    });
     elements.main.querySelector("[data-add-venue]")?.addEventListener("click", openVenueDialog);
   }
 
   function openNotes(venueId) {
     openScorecard(venueId, { jumpTo: "notes" });
+  }
+
+  function openVenueResults(venueId) {
+    state.selectedResultVenueId = venueId;
+    state.screen = "venue-result";
+    renderCurrentScreen();
+    elements.main.focus({ preventScroll: true });
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   function insertNotePrompt(editor, prompt, venueId) {
@@ -1344,7 +1365,7 @@
         </div>
       </section>`;
     elements.main.querySelector("[data-saved-venues]").addEventListener("click", () => setScreen("venues"));
-    elements.main.querySelector("[data-saved-results]")?.addEventListener("click", () => setScreen("results"));
+    elements.main.querySelector("[data-saved-results]")?.addEventListener("click", () => openVenueResults(venue.id));
     elements.main.querySelector("[data-saved-edit]")?.addEventListener("click", () => openScorecard(venue.id));
   }
 
@@ -1376,6 +1397,72 @@
           <div class="factor-result-value">${item.average === null ? "—" : item.average.toFixed(1)}<small>${item.count} response${item.count === 1 ? "" : "s"}</small></div>
         </div>`;
     }).join("");
+  }
+
+  function nameWithJi(name) {
+    const cleaned = String(name || "Guest").trim();
+    return /ji$/i.test(cleaned) ? cleaned : `${cleaned}ji`;
+  }
+
+  function renderVenueResult(venueId) {
+    state.screen = "venue-result";
+    state.selectedResultVenueId = venueId;
+    const venue = state.venues.find((item) => item.id === venueId);
+    const result = state.results[venueId];
+    if (!venue) {
+      setScreen("venues");
+      return;
+    }
+    const submitted = Boolean(state.submissions[venueId] || queuedSubmission(venueId));
+    const primaryAction = submitted ? "Edit" : "Rate";
+    const actionButtons = `
+      <div class="venue-result-actions">
+        <button type="button" class="button button-secondary" data-venue-result-notes>Notes</button>
+        <button type="button" class="button button-primary" data-venue-result-rate>${primaryAction}</button>
+      </div>`;
+    if (!result || typeof result.average !== "number") {
+      elements.main.innerHTML = `
+        <section class="venue-result-heading">
+          <button type="button" class="plain-back" data-venue-result-back>← Back</button>
+          <p class="kicker">${escapeHTML(venue.city)}</p>
+          <h1>${escapeHTML(venue.name)}</h1>
+        </section>
+        <section class="result-lock">
+          <h2>Scores appear after 4 ratings</h2>
+          <p>${escapeHTML(waitingText(result) || "No ratings yet")}</p>
+        </section>
+        ${actionButtons}`;
+    } else {
+      const insights = result.insights;
+      const quotes = Array.isArray(insights?.quotes) ? insights.quotes.slice(0, 2) : [];
+      const overheard = insights ? `
+        <section class="overheard-section">
+          <p class="kicker">Notes</p>
+          <h2>Overheard on the venue tour</h2>
+          <p class="overheard-summary">${escapeHTML(insights.summary || "")}</p>
+          ${quotes.map((quote) => `
+            <blockquote class="tour-quote">
+              <p>“${escapeHTML(quote.text || "")}”</p>
+              <cite>— ${escapeHTML(nameWithJi(quote.personName))}</cite>
+            </blockquote>`).join("")}
+        </section>` : "";
+      elements.main.innerHTML = `
+        <section class="venue-result-heading">
+          <button type="button" class="plain-back" data-venue-result-back>← Back</button>
+          <p class="kicker">${escapeHTML(venue.city)}</p>
+          <h1>${escapeHTML(venue.name)}</h1>
+        </section>
+        <section class="venue-result-hero">
+          <div class="venue-result-score"><strong>${result.average.toFixed(1)}</strong><span>/10</span></div>
+          <div><span class="agreement-pill ${agreementClass(result.agreement)}">${escapeHTML(result.agreement)}</span><p>${escapeHTML(insights?.vibe || `${result.respondentCount} people have rated this venue.`)}</p></div>
+        </section>
+        <section class="venue-factor-section"><h2>Score breakdown</h2><div class="factor-results">${factorResultsMarkup(result)}</div></section>
+        ${overheard}
+        ${actionButtons}`;
+    }
+    elements.main.querySelector("[data-venue-result-back]")?.addEventListener("click", () => setScreen("venues"));
+    elements.main.querySelector("[data-venue-result-notes]")?.addEventListener("click", () => openNotes(venueId));
+    elements.main.querySelector("[data-venue-result-rate]")?.addEventListener("click", () => openScorecard(venueId));
   }
 
   function renderResults() {
