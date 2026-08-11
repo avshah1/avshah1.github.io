@@ -81,6 +81,8 @@
     venues: "venue-scout:v1:venues",
     drafts: "venue-scout:v1:drafts",
     noteDrafts: "venue-scout:v1:note-drafts",
+    brainstormDrafts: "venue-scout:v1:brainstorm-drafts",
+    brainstorm: "venue-scout:v1:brainstorm",
     outbox: "venue-scout:v1:outbox",
     state: "venue-scout:v1:remote-state",
   };
@@ -127,6 +129,11 @@
     adminParticipation: null,
     adminExport: null,
     adminMutating: false,
+    brainstormIdeas: readJSON(STORAGE.brainstorm, []),
+    brainstormPermissions: { canArchiveAny: false },
+    brainstormLoading: false,
+    brainstormMutating: false,
+    brainstormEditingId: null,
     method: cachedRemote.method || DEFAULT_METHOD,
     screen: "venues",
     selectedVenueId: null,
@@ -354,6 +361,32 @@
     return new Set(outbox().filter((item) => item.type === "venue").map((item) => item.payload.id));
   }
 
+  function brainstormDraftId(ideaId = "new", profileKey = state.profile?.key) {
+    return `${profileKey}:${ideaId}`;
+  }
+
+  function getBrainstormDraft(ideaId = "new") {
+    return readJSON(STORAGE.brainstormDrafts, {})[brainstormDraftId(ideaId)] || null;
+  }
+
+  function setBrainstormDraft(ideaId, value, profileKey = state.profile?.key) {
+    const drafts = readJSON(STORAGE.brainstormDrafts, {});
+    drafts[brainstormDraftId(ideaId, profileKey)] = value;
+    return writeJSON(STORAGE.brainstormDrafts, drafts);
+  }
+
+  function removeBrainstormDraft(ideaId, mutationId = null, profileKey = state.profile?.key) {
+    const drafts = readJSON(STORAGE.brainstormDrafts, {});
+    const id = brainstormDraftId(ideaId, profileKey);
+    if (mutationId && drafts[id]?.mutationId !== mutationId) return;
+    delete drafts[id];
+    writeJSON(STORAGE.brainstormDrafts, drafts);
+  }
+
+  function queuedBrainstormOperations() {
+    return outbox().filter((item) => item.type === "brainstorm" && item.profileKey === state.profile?.key);
+  }
+
   function getVenueNoteData(venueId) {
     const local = getNoteDraft(venueId);
     if (local) return { ...local, source: "local" };
@@ -382,9 +415,25 @@
     });
   }
 
+  function applyBrainstormState(data) {
+    if (Array.isArray(data.brainstormIdeas)) {
+      state.brainstormIdeas = data.brainstormIdeas;
+      writeJSON(STORAGE.brainstorm, state.brainstormIdeas.map(({ canEdit, ...idea }) => idea));
+    }
+    if (data.permissions) state.brainstormPermissions = data.permissions;
+  }
+
+  function resetBrainstormPermissions() {
+    state.brainstormPermissions = { canArchiveAny: false };
+    state.brainstormIdeas = state.brainstormIdeas.map((idea) => ({
+      ...idea,
+      canEdit: normalizeKey(nameMatch(idea.authorName).exact || idea.authorName) === state.profile?.key,
+    }));
+  }
+
   function migrateLocalIdentity(previousKey, nextKey, nextName) {
     if (!previousKey || previousKey === nextKey) return;
-    [STORAGE.drafts, STORAGE.noteDrafts].forEach((storageKey) => {
+    [STORAGE.drafts, STORAGE.noteDrafts, STORAGE.brainstormDrafts].forEach((storageKey) => {
       const records = readJSON(storageKey, {});
       Object.keys(records).forEach((id) => {
         if (!id.startsWith(`${previousKey}:`)) return;
@@ -481,6 +530,32 @@
     }
   }
 
+  function brainstormFetch(path, options = {}, profileKey = state.profile?.key, adminMode = null) {
+    const shouldUseAdmin = adminMode ?? true;
+    const useAdmin = shouldUseAdmin && profileKey === state.profile?.key && ADMIN_PROFILE_KEYS.has(profileKey) && state.adminPin;
+    return apiFetch(path, {
+      ...options,
+      headers: {
+        ...(options.headers || {}),
+        ...(useAdmin ? { "X-Admin-Name": state.profile.name, "X-Admin-Pin": state.adminPin } : {}),
+      },
+    });
+  }
+
+  async function refreshBrainstorm(options = {}) {
+    if (!state.profile || !navigator.onLine || state.brainstormLoading) return;
+    state.brainstormLoading = true;
+    try {
+      const data = await brainstormFetch(`/api/brainstorm?name=${encodeURIComponent(state.profile.name)}`);
+      applyBrainstormState(data);
+    } catch (error) {
+      if (!options.silent) showToast(error.message || "Couldn’t refresh the brainstorm.");
+    } finally {
+      state.brainstormLoading = false;
+      if (state.screen === "brainstorm") renderBrainstorm();
+    }
+  }
+
   function applyRemoteState(data) {
     const queuedIds = queuedVenueIds();
     const localOnlyVenues = state.venues.filter((venue) => queuedIds.has(venue.id));
@@ -526,25 +601,34 @@
     if (!operations.length) return;
     state.syncing = true;
     updateConnectionUI();
-    const priority = { venue: 0, note: 1, submission: 2 };
+    const priority = { venue: 0, brainstorm: 1, note: 2, submission: 3 };
     const ordered = [...operations].sort((a, b) => (priority[a.type] ?? 9) - (priority[b.type] ?? 9));
     let synced = 0;
     let syncedCurrentNonNotes = 0;
     try {
       for (const operation of ordered) {
+        if (operation.type === "brainstorm" && operation.useAdmin
+          && (operation.profileKey !== state.profile?.key || !state.adminPin)) continue;
         try {
-          const endpoint = operation.type === "venue"
-            ? "/api/venues"
-            : operation.type === "note" ? "/api/notes" : "/api/submissions";
-          const data = await apiFetch(endpoint, {
+          const endpoint = operation.type === "venue" ? "/api/venues"
+            : operation.type === "brainstorm" ? "/api/brainstorm"
+            : operation.type === "note" ? "/api/notes"
+            : "/api/submissions";
+          const request = operation.type === "brainstorm" ? brainstormFetch : apiFetch;
+          const data = await request(endpoint, {
             method: "POST",
             body: JSON.stringify(operation.payload),
-            keepalive: operation.type === "note",
-          });
+            keepalive: operation.type === "note" || operation.type === "brainstorm",
+          }, operation.profileKey, operation.useAdmin);
           const isCurrentPerson = operation.profileKey === state.profile?.key;
           if (operation.type === "venue" && Array.isArray(data.venues)) {
             state.venues = data.venues;
             writeJSON(STORAGE.venues, state.venues);
+          } else if (operation.type === "brainstorm") {
+            applyBrainstormState(data);
+            if (!isCurrentPerson) resetBrainstormPermissions();
+            const draftKey = operation.payload.action === "add" ? "new" : operation.payload.ideaId;
+            removeBrainstormDraft(draftKey, operation.payload.mutationId, operation.profileKey);
           } else if (operation.type === "note") {
             if (isCurrentPerson) applyRemoteState(data);
             removeNoteDraft(operation.payload.venueId, operation.payload.mutationId, operation.profileKey);
@@ -556,6 +640,17 @@
           synced += 1;
           if (operation.type !== "note" && isCurrentPerson) syncedCurrentNonNotes += 1;
         } catch (error) {
+          if (operation.type === "brainstorm" && error.status === 409) {
+            const draftKey = operation.payload.action === "add" ? "new" : operation.payload.ideaId;
+            setBrainstormDraft(draftKey, {
+              body: operation.payload.body || "",
+              updatedAt: new Date().toISOString(),
+            }, operation.profileKey);
+            removeOutboxOperation(operation.id, operationVersion(operation));
+            await refreshBrainstorm({ silent: true });
+            showToast("That idea changed elsewhere. Your text is still saved here—open it and apply it again.");
+            continue;
+          }
           if (error.status && error.status < 500) showToast(error.message);
           break;
         }
@@ -579,6 +674,8 @@
     const nextProfile = { name: matchedName, key: normalizeKey(matchedName) };
     migrateLocalIdentity(previousKey, nextProfile.key, nextProfile.name);
     state.profile = nextProfile;
+    resetBrainstormPermissions();
+    state.brainstormEditingId = null;
     const personCache = readJSON(STORAGE.state, {});
     const cachedPersonKey = personCache.personKey || previousKey;
     if (cachedPersonKey === state.profile.key) {
@@ -623,6 +720,8 @@
     state.adminPin = "";
     state.adminParticipation = null;
     state.adminExport = null;
+    resetBrainstormPermissions();
+    state.brainstormEditingId = null;
     saveAdminPin("");
     elements.adminNotesNav.hidden = true;
     elements.bottomNav.classList.remove("has-admin");
@@ -648,6 +747,7 @@
     if (screen !== "score") state.selectedVenueId = null;
     if (screen !== "venue-result") state.selectedResultVenueId = null;
     renderCurrentScreen();
+    if (screen === "brainstorm") refreshBrainstorm({ silent: true });
     elements.main.focus({ preventScroll: true });
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -671,9 +771,274 @@
     if (state.screen === "score" && state.selectedVenueId) renderScorecard(state.selectedVenueId);
     else if (state.screen === "venue-result" && state.selectedResultVenueId) renderVenueResult(state.selectedResultVenueId);
     else if (state.screen === "results") renderResults();
+    else if (state.screen === "brainstorm") renderBrainstorm();
     else if (state.screen === "admin-notes" && isAdminProfile()) renderAdminNotes();
     else if (state.screen === "admin" && isAdminProfile()) renderAdmin();
     else renderVenues();
+  }
+
+  function cleanBrainstormBody(value) {
+    return String(value || "").normalize("NFKC").replace(/\r\n?/g, "\n").trim().slice(0, 1000);
+  }
+
+  function brainstormIdeasForDisplay() {
+    const ideas = new Map(state.brainstormIdeas.map((idea) => [idea.id, { ...idea }]));
+    const pendingAdds = [];
+    queuedBrainstormOperations().forEach((operation) => {
+      const payload = operation.payload;
+      if (payload.action === "add") {
+        pendingAdds.push({
+          id: `pending:${payload.mutationId}`,
+          body: payload.body,
+          canEdit: false,
+          pending: true,
+          queuedAt: operation.queuedAt,
+        });
+      } else if (payload.action === "edit" && ideas.has(payload.ideaId)) {
+        ideas.set(payload.ideaId, { ...ideas.get(payload.ideaId), body: payload.body, pending: true });
+      } else if (payload.action === "archive") {
+        ideas.delete(payload.ideaId);
+      }
+    });
+    pendingAdds.sort((a, b) => String(b.queuedAt).localeCompare(String(a.queuedAt)));
+    return [...pendingAdds, ...ideas.values()];
+  }
+
+  function brainstormFetchIdea(ideaId) {
+    return state.brainstormIdeas.find((idea) => idea.id === ideaId);
+  }
+
+  function isOwnBrainstormIdea(idea) {
+    return normalizeKey(nameMatch(idea.authorName).exact || idea.authorName) === state.profile?.key;
+  }
+
+  async function persistBrainstormOperation(payload, options) {
+    if (state.brainstormMutating) return;
+    state.brainstormMutating = true;
+    renderBrainstorm();
+    if (navigator.onLine) {
+      try {
+        const data = await brainstormFetch("/api/brainstorm", { method: "POST", body: JSON.stringify(payload) }, state.profile.key, options.useAdmin);
+        applyBrainstormState(data);
+        if (options.draftKey) removeBrainstormDraft(options.draftKey, payload.mutationId);
+        state.brainstormEditingId = null;
+        state.brainstormMutating = false;
+        showToast(options.successMessage);
+        renderBrainstorm();
+        return;
+      } catch (error) {
+        if (error.status === 409) {
+          state.brainstormMutating = false;
+          if (options.draftKey) setBrainstormDraft(options.draftKey, {
+            body: payload.body || "",
+            updatedAt: new Date().toISOString(),
+          });
+          await refreshBrainstorm({ silent: true });
+          showToast("That idea changed elsewhere. Your text is still saved here—apply it again.");
+          return;
+        }
+        if (error.status && error.status < 500) {
+          state.brainstormMutating = false;
+          showToast(error.message || "Couldn’t save that idea.");
+          renderBrainstorm();
+          return;
+        }
+      }
+    }
+    const queued = queueOperation({
+      id: options.operationId,
+      type: "brainstorm",
+      profileKey: state.profile.key,
+      useAdmin: Boolean(options.useAdmin),
+      payload,
+    });
+    state.brainstormMutating = false;
+    if (!queued) {
+      showToast("This phone couldn’t save that idea. Copy the text before leaving.");
+      renderBrainstorm();
+      return;
+    }
+    if (options.draftKey) removeBrainstormDraft(options.draftKey, payload.mutationId);
+    state.brainstormEditingId = null;
+    showToast("Saved here—this idea will sync when you’re online.");
+    renderBrainstorm();
+    if (navigator.onLine) syncOutbox();
+  }
+
+  function brainstormIdeaMarkup(idea) {
+    const editing = state.brainstormEditingId === idea.id;
+    const canEdit = Boolean(idea.canEdit && !idea.pending);
+    const canArchive = Boolean(state.brainstormPermissions.canArchiveAny && !idea.pending);
+    if (editing) {
+      const draft = getBrainstormDraft(idea.id);
+      const editorId = `brainstorm-edit-${idea.id}`;
+      return `
+        <li class="brainstorm-item is-editing">
+          <form data-brainstorm-edit-form="${escapeHTML(idea.id)}">
+            <label class="sr-only" for="${escapeHTML(editorId)}">Edit idea</label>
+            <textarea id="${escapeHTML(editorId)}" name="body" maxlength="1000" required>${escapeHTML(draft?.body ?? idea.body)}</textarea>
+            <p class="field-error" data-brainstorm-edit-error role="alert"></p>
+            <div class="brainstorm-edit-actions">
+              <button type="button" class="button button-quiet" data-brainstorm-cancel>Cancel</button>
+              <button type="submit" class="button button-primary" ${state.brainstormMutating ? "disabled" : ""}>Save</button>
+            </div>
+          </form>
+        </li>`;
+    }
+    return `
+      <li class="brainstorm-item ${idea.pending ? "is-pending" : ""}">
+        <p>${escapeHTML(idea.body).replace(/\n/g, "<br>")}</p>
+        ${idea.pending ? '<span class="brainstorm-pending">Waiting to sync</span>' : ""}
+        ${canEdit || canArchive ? `<div class="brainstorm-item-actions">
+          ${canEdit ? `<button type="button" data-brainstorm-edit="${escapeHTML(idea.id)}">Edit</button>` : ""}
+          ${canArchive ? `<button type="button" data-brainstorm-archive="${escapeHTML(idea.id)}" aria-label="Archive idea">Archive</button>` : ""}
+        </div>` : ""}
+      </li>`;
+  }
+
+  function renderBrainstorm() {
+    state.screen = "brainstorm";
+    const draft = getBrainstormDraft("new");
+    const ideas = brainstormIdeasForDisplay();
+    const showManage = isAdminProfile() && !state.brainstormPermissions.canArchiveAny;
+    elements.main.innerHTML = `
+      <section class="brainstorm-heading">
+        <h1>Mega Brainstorm</h1>
+        ${showManage ? '<button type="button" class="button button-quiet button-small" data-brainstorm-manage>Manage</button>' : ""}
+      </section>
+      ${showManage ? `<form class="brainstorm-unlock" data-brainstorm-unlock hidden>
+        <label for="brainstorm-admin-pin">Admin PIN</label>
+        <div><input id="brainstorm-admin-pin" name="pin" type="password" inputmode="numeric" autocomplete="off" required><button type="submit" class="button button-secondary">Unlock</button></div>
+        <p class="field-error" data-brainstorm-unlock-error role="alert"></p>
+      </form>` : ""}
+      <form class="brainstorm-composer" data-brainstorm-add>
+        <label class="sr-only" for="brainstorm-new-idea">Add an idea</label>
+        <textarea id="brainstorm-new-idea" name="body" maxlength="1000" placeholder="Add an idea" required>${escapeHTML(draft?.body || "")}</textarea>
+        <p class="field-error" data-brainstorm-add-error role="alert"></p>
+        <button type="submit" class="button button-primary" ${state.brainstormMutating ? "disabled" : ""}>Add</button>
+      </form>
+      ${ideas.length ? `<ul class="brainstorm-list">${ideas.map(brainstormIdeaMarkup).join("")}</ul>` : '<p class="brainstorm-empty">No ideas yet.</p>'}`;
+
+    const addForm = elements.main.querySelector("[data-brainstorm-add]");
+    const addEditor = addForm.querySelector("textarea");
+    addEditor.addEventListener("input", () => {
+      const body = addEditor.value;
+      if (body) {
+        if (!setBrainstormDraft("new", { body, updatedAt: new Date().toISOString() })) state.storageError = true;
+      } else {
+        removeBrainstormDraft("new");
+      }
+    });
+    addForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const body = cleanBrainstormBody(addEditor.value);
+      const error = addForm.querySelector("[data-brainstorm-add-error]");
+      if (body.length < 2) {
+        error.textContent = "Add at least two characters.";
+        addEditor.focus();
+        return;
+      }
+      const mutationId = getBrainstormDraft("new")?.mutationId || makeMutationId();
+      if (!setBrainstormDraft("new", { body, mutationId, updatedAt: new Date().toISOString() })) {
+        error.textContent = "This phone couldn’t save the idea yet.";
+        return;
+      }
+      persistBrainstormOperation({ action: "add", personName: state.profile.name, body, mutationId }, {
+        operationId: `brainstorm:add:${state.profile.key}:${mutationId}`,
+        draftKey: "new",
+        useAdmin: false,
+        successMessage: "Idea added.",
+      });
+    });
+
+    elements.main.querySelectorAll("[data-brainstorm-edit]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const idea = brainstormFetchIdea(button.dataset.brainstormEdit);
+        if (!idea) return;
+        if (!getBrainstormDraft(idea.id)) setBrainstormDraft(idea.id, { body: idea.body, updatedAt: new Date().toISOString() });
+        state.brainstormEditingId = idea.id;
+        renderBrainstorm();
+        elements.main.querySelector("[data-brainstorm-edit-form] textarea")?.focus();
+      });
+    });
+    elements.main.querySelectorAll("[data-brainstorm-edit-form]").forEach((form) => {
+      const ideaId = form.dataset.brainstormEditForm;
+      const editor = form.querySelector("textarea");
+      editor.addEventListener("input", () => setBrainstormDraft(ideaId, { body: editor.value, updatedAt: new Date().toISOString() }));
+      form.querySelector("[data-brainstorm-cancel]").addEventListener("click", () => {
+        removeBrainstormDraft(ideaId);
+        state.brainstormEditingId = null;
+        renderBrainstorm();
+      });
+      form.addEventListener("submit", (event) => {
+        event.preventDefault();
+        const idea = brainstormFetchIdea(ideaId);
+        const body = cleanBrainstormBody(editor.value);
+        const error = form.querySelector("[data-brainstorm-edit-error]");
+        if (!idea || body.length < 2) {
+          error.textContent = "Add at least two characters.";
+          return;
+        }
+        const mutationId = getBrainstormDraft(ideaId)?.mutationId || makeMutationId();
+        if (!setBrainstormDraft(ideaId, { body, mutationId, updatedAt: new Date().toISOString() })) {
+          error.textContent = "This phone couldn’t save the edit yet.";
+          return;
+        }
+        persistBrainstormOperation({
+          action: "edit",
+          personName: state.profile.name,
+          ideaId,
+          body,
+          expectedRevision: idea.revision,
+          mutationId,
+        }, {
+          operationId: `brainstorm:edit:${ideaId}`,
+          draftKey: ideaId,
+          useAdmin: !isOwnBrainstormIdea(idea),
+          successMessage: "Idea updated.",
+        });
+      });
+    });
+    elements.main.querySelectorAll("[data-brainstorm-archive]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const idea = brainstormFetchIdea(button.dataset.brainstormArchive);
+        if (!idea || !window.confirm("Archive this idea?")) return;
+        const mutationId = makeMutationId();
+        persistBrainstormOperation({
+          action: "archive",
+          personName: state.profile.name,
+          ideaId: idea.id,
+          expectedRevision: idea.revision,
+          mutationId,
+        }, {
+          operationId: `brainstorm:archive:${idea.id}`,
+          useAdmin: true,
+          successMessage: "Idea archived.",
+        });
+      });
+    });
+    elements.main.querySelector("[data-brainstorm-manage]")?.addEventListener("click", (event) => {
+      event.currentTarget.hidden = true;
+      const form = elements.main.querySelector("[data-brainstorm-unlock]");
+      form.hidden = false;
+      form.querySelector("input").focus();
+    });
+    elements.main.querySelector("[data-brainstorm-unlock]")?.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const pin = String(new FormData(event.currentTarget).get("pin") || "").trim();
+      const error = event.currentTarget.querySelector("[data-brainstorm-unlock-error]");
+      state.adminPin = pin;
+      saveAdminPin(pin);
+      try {
+        const data = await brainstormFetch(`/api/brainstorm?name=${encodeURIComponent(state.profile.name)}`);
+        if (!data.permissions?.canArchiveAny) throw Object.assign(new Error("Wrong PIN."), { status: 401 });
+        applyBrainstormState(data);
+        renderBrainstorm();
+      } catch (requestError) {
+        clearAdminSession();
+        error.textContent = requestError.status === 401 || requestError.status === 403 ? "Wrong PIN." : "Couldn’t unlock controls.";
+      }
+    });
   }
 
   function renderAdminNotes() {
@@ -726,6 +1091,7 @@
     state.adminPin = "";
     state.adminParticipation = null;
     state.adminExport = null;
+    resetBrainstormPermissions();
     saveAdminPin("");
   }
 
@@ -1399,11 +1765,6 @@
     }).join("");
   }
 
-  function nameWithJi(name) {
-    const cleaned = String(name || "Guest").trim();
-    return /ji$/i.test(cleaned) ? cleaned : `${cleaned}ji`;
-  }
-
   function renderVenueResult(venueId) {
     state.screen = "venue-result";
     state.selectedResultVenueId = venueId;
@@ -1443,7 +1804,6 @@
           ${quotes.map((quote) => `
             <blockquote class="tour-quote">
               <p>“${escapeHTML(quote.text || "")}”</p>
-              <cite>— ${escapeHTML(nameWithJi(quote.personName))}</cite>
             </blockquote>`).join("")}
         </section>` : "";
       elements.main.innerHTML = `

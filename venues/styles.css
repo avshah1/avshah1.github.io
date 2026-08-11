@@ -543,7 +543,7 @@ code {
   bottom: 0;
   left: 0;
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   padding: 0.45rem max(0.75rem, calc((100vw - 32rem) / 2)) calc(0.45rem + var(--safe-bottom));
   border-top: 1px solid rgba(59, 16, 40, 0.1);
   background: rgba(255, 253, 248, 0.94);
@@ -553,7 +553,7 @@ code {
 }
 
 .bottom-nav.has-admin {
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
 }
 
 .admin-notes-group {
@@ -593,6 +593,167 @@ code {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
+}
+
+.brainstorm-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.85rem 0 1rem;
+}
+
+.brainstorm-heading h1 {
+  min-width: 0;
+  margin: 0;
+  color: var(--wine);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(2.15rem, 10vw, 3.5rem);
+  font-weight: 600;
+  letter-spacing: -0.05em;
+  line-height: 0.98;
+}
+
+.brainstorm-composer,
+.brainstorm-unlock {
+  padding: 0.75rem;
+  border: 1px solid rgba(59, 16, 40, 0.1);
+  border-radius: 17px;
+  background: var(--paper);
+}
+
+.brainstorm-composer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: stretch;
+  gap: 0.55rem;
+}
+
+.brainstorm-composer textarea,
+.brainstorm-item textarea,
+.brainstorm-unlock input {
+  width: 100%;
+  min-width: 0;
+  padding: 0.7rem 0.75rem;
+  border: 1px solid rgba(59, 16, 40, 0.16);
+  border-radius: 12px;
+  background: white;
+  color: var(--ink);
+  font: inherit;
+  font-size: 16px;
+}
+
+.brainstorm-composer textarea,
+.brainstorm-item textarea {
+  min-height: 72px;
+  resize: vertical;
+  line-height: 1.45;
+}
+
+.brainstorm-composer .field-error {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+.brainstorm-list {
+  margin: 0.8rem 0 0;
+  padding: 0.2rem 0.75rem 0.2rem 2rem;
+  border: 1px solid rgba(59, 16, 40, 0.1);
+  border-radius: 18px;
+  background: var(--paper);
+  box-shadow: 0 7px 24px rgba(59, 16, 40, 0.045);
+}
+
+.brainstorm-item {
+  min-width: 0;
+  padding: 0.72rem 0.15rem 0.72rem 0;
+  color: var(--saffron);
+}
+
+.brainstorm-item + .brainstorm-item {
+  border-top: 1px solid rgba(59, 16, 40, 0.07);
+}
+
+.brainstorm-item::marker {
+  font-size: 1.05rem;
+}
+
+.brainstorm-item p {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--ink);
+  font-size: 0.86rem;
+  line-height: 1.5;
+}
+
+.brainstorm-item.is-pending p {
+  color: var(--muted);
+}
+
+.brainstorm-pending {
+  display: block;
+  margin-top: 0.25rem;
+  color: var(--muted);
+  font-size: 0.66rem;
+  font-weight: 750;
+}
+
+.brainstorm-item-actions,
+.brainstorm-edit-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.45rem;
+}
+
+.brainstorm-item-actions button {
+  min-height: 44px;
+  padding: 0.45rem 0.7rem;
+  border: 1px solid rgba(59, 16, 40, 0.12);
+  border-radius: 11px;
+  background: white;
+  color: var(--wine);
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.brainstorm-item.is-editing {
+  color: var(--ink);
+}
+
+.brainstorm-item.is-editing form {
+  min-width: 0;
+}
+
+.brainstorm-edit-actions .button {
+  flex: 1;
+}
+
+.brainstorm-unlock {
+  margin-bottom: 0.7rem;
+}
+
+.brainstorm-unlock > label {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.brainstorm-unlock > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.5rem;
+}
+
+.brainstorm-empty {
+  margin: 0.9rem 0 0;
+  padding: 1.2rem;
+  border: 1px dashed rgba(59, 16, 40, 0.16);
+  border-radius: 16px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  text-align: center;
 }
 
 .admin-login,
