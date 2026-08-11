@@ -1421,7 +1421,7 @@
         const waiting = waitingText(result);
         const needsReview = Boolean(result?.discussionStarted && !state.submissions[venue.id] && !queuedSubmission(venue.id));
         return `
-          <article class="venue-card ${needsReview ? "needs-review" : ""}">
+          <article class="venue-card ${needsReview ? "needs-review" : ""}" tabindex="0" data-results-card="${escapeHTML(venue.id)}" aria-label="View results for ${escapeHTML(venue.name)}">
             <span class="venue-number" aria-hidden="true">${String(index + 1).padStart(2, "0")}</span>
             <div class="venue-info">
               <h3>${escapeHTML(venue.name)}</h3>
@@ -1462,6 +1462,17 @@
     });
     elements.main.querySelectorAll("[data-results-venue]").forEach((button) => {
       button.addEventListener("click", () => openVenueResults(button.dataset.resultsVenue));
+    });
+    elements.main.querySelectorAll("[data-results-card]").forEach((card) => {
+      card.addEventListener("click", (event) => {
+        if (event.target.closest("button")) return;
+        openVenueResults(card.dataset.resultsCard);
+      });
+      card.addEventListener("keydown", (event) => {
+        if (event.target !== card || (event.key !== "Enter" && event.key !== " ")) return;
+        event.preventDefault();
+        openVenueResults(card.dataset.resultsCard);
+      });
     });
     elements.main.querySelector("[data-add-venue]")?.addEventListener("click", openVenueDialog);
   }

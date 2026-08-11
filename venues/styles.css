@@ -1058,6 +1058,12 @@ code {
   border-radius: 18px;
   background: rgba(255, 253, 248, 0.92);
   box-shadow: 0 7px 24px rgba(59, 16, 40, 0.055);
+  cursor: pointer;
+}
+
+.venue-card:focus-visible {
+  outline: 3px solid rgba(20, 118, 110, 0.42);
+  outline-offset: 2px;
 }
 
 .venue-card::before {
