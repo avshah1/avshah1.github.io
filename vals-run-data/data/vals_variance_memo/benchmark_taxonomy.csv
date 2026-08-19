@@ -1,0 +1,79 @@
+benchmark,score_type,primary_score_representation,grader_type,detailed_runs_inspected,task_records_inspected,binary_field_observed,continuous_field_observed,judge_field_observed,evidence_source,confidence
+aime-2026,binary task outcome,binary,unknown,1,29,True,False,False,run:73c022b1-0623-42fa-a403-5ba419fbc567,schema observed
+argus,unknown,unknown,LLM judge or rubric evaluator,1,1,False,False,True,run:c9c015a0-4ecb-47bc-a61f-c2fa9ca49058,unknown
+blueprint,binary task outcome,binary,executable verifier,1,5,True,False,False,run:cee8d1d0-005b-4462-a736-8b98733193a2,schema observed
+code-migration,mixed binary and partial credit,unknown,executable verifier,1,1,True,True,False,run:fa452656-8749-40cd-809d-08878fe41487,schema observed
+cpse-bench,unknown,unknown,unknown,1,1,False,False,False,run:1f621376-3b53-4131-995a-1f8fcbf5867a,unknown
+cyberbench,binary task outcome,binary,unknown,1,58,True,False,False,run:8e5a15ce-61b7-4731-9702-2502078e5be3,schema observed
+dcf,unknown,unknown,unknown,0,0,False,False,False,no detailed result available,unknown
+deepmind-formal-conjectures,unknown,unknown,unknown,0,0,False,False,False,no detailed result available,unknown
+discogen-harness-rsi-local,binary task outcome,binary,executable verifier,1,1,True,False,False,run:cd2cf256-946e-432b-b6cf-8715c0b517bb,schema observed
+emb,unknown,unknown,unknown,1,102,False,False,False,run:d4fa79d5-afcf-4b5c-bce9-62bd39db9df9,unknown
+fab,graded / continuous,continuous,LLM judge or rubric evaluator,1,1,False,True,True,run:25d4be03-e18a-44db-b06f-b9f3489227b3,schema observed
+fabv2,graded / continuous,continuous,LLM judge or rubric evaluator,1,10,False,True,True,run:c739c8cc-2e80-41e2-a815-500e7d15f4b4,schema observed
+fabv2-internal,graded / continuous,continuous,LLM judge or rubric evaluator,1,449,False,True,True,run:43d6606d-bf7f-4848-b283-5417c8cab7f0,schema observed
+fabv2-refactor,graded / continuous,continuous,LLM judge or rubric evaluator,1,126,False,True,True,run:9b5cee31-0ef0-4fbf-b4b7-7e69f7b52fb9,schema observed
+financial-health,unknown,unknown,LLM judge or rubric evaluator,1,9,False,False,True,run:c83c958d-1848-4855-9f4b-94bb0919d0b5,unknown
+harbor,unknown,unknown,unknown,1,10,False,False,False,run:52daad7e-5da7-4242-a2e9-88f8add788f7,unknown
+harvey,binary task outcome,binary,LLM judge or rubric evaluator,1,1,True,False,True,run:c35c20db-aac0-49c9-9e4a-62174dd14ba1,schema observed
+harvey-legal-agent,binary task outcome,binary,LLM judge or rubric evaluator,1,119,True,False,True,run:e8452a92-128a-431a-b461-b6b4061845f5,schema observed
+ioi,graded / continuous,continuous,LLM judge or rubric evaluator,1,6,False,True,True,run:6aa08be3-b4fd-4b32-b6d9-5e22fca1c88a,schema observed
+kspbench,binary task outcome,binary,unknown,1,1,True,False,False,run:facd7024-c3b3-416e-9253-7ae70ba188b1,schema observed
+legal,unknown,unknown,unknown,1,1,False,False,False,run:6272f500-4d30-4ddc-b8f9-588e4cd6ae1e,unknown
+legal-research,mixed binary and partial credit,binary,LLM judge,23,4782,True,True,True,https://www.vals.ai/benchmarks/legal_research,documented and schema checked
+osworld-v2,binary task outcome,binary,unknown,1,1,True,False,False,run:cfea4897-95f3-42d4-a49b-d573a58ee76d,schema observed
+persona_eval,binary task outcome,binary,LLM judge or rubric evaluator,1,3,True,False,True,run:51e2cdb8-a8d3-463a-b656-b5efbd207366,schema observed
+platformbe,binary task outcome,binary,unknown,1,14,True,False,False,run:a0f9e214-122c-4c13-8774-193f742a83bd,schema observed
+pretrainbench,binary task outcome,binary,unknown,1,1,True,False,False,run:abbea364-0c4f-4999-b3fd-a45a479223c6,schema observed
+progbench10,binary task outcome,binary,unknown,1,1,True,False,False,run:21957c8a-764e-423d-a3ea-5fce1875587e,schema observed
+progbench6,binary task outcome,binary,unknown,1,1,True,False,False,run:9f3d4ef7-2b74-432e-9237-356d8f0e99a5,schema observed
+progbench7,binary task outcome,binary,unknown,1,1,True,False,False,run:176ebfa3-f17b-4011-9a14-f15163a62341,schema observed
+programbench,binary task outcome,binary,executable verifier,1,199,True,False,False,run:450410a3-c042-4a4e-a313-9a1f0d97e663,schema observed
+proof-bench,binary task outcome,binary,unknown,1,99,True,False,False,run:fde288b4-40e7-4ef0-992f-bebd138dd9c5,schema observed
+qwen-sonnet-self-consistency,mixed binary and partial credit,unknown,agentic UI evaluator,1,14,True,True,False,run:3c3a8e43-1417-45c5-b2c8-0b2a13b458a1,schema observed
+rsi-gpu-shell,binary task outcome,binary,executable verifier,1,1,True,False,False,run:a38cab50-4066-44b4-9ccb-5b5c9b2fabd0,schema observed
+rsi-gpu-shell-assay-mini-20260703004310,binary task outcome,binary,executable verifier,1,1,True,False,False,run:db352ff8-4cb1-44b9-aecd-e4cb02d0af35,schema observed
+rsi-gpu-shell-continual-harness-smoke-20260713a,binary task outcome,binary,executable verifier,1,1,True,False,False,run:43646738-1335-4b42-89b4-16052e6b653b,schema observed
+rsi-gpu-shell-fabv2-autoresearch-20260715133143,binary task outcome,binary,executable verifier,1,1,True,False,False,run:d29f2430-c98d-4c92-879b-50a5e6d14eb3,schema observed
+rsi-gpu-shell-fabv2-autoresearch-full16-20260715160049,binary task outcome,binary,executable verifier,1,1,True,False,False,run:c42b6bdc-3927-48a0-ac33-8b305ba01994,schema observed
+rsi-gpu-shell-fabv2-hillclimb-arbor-20260715231935,binary task outcome,binary,executable verifier,1,1,True,False,False,run:c7406b04-c86b-43e0-b8a5-37e21af8ecda,schema observed
+rsi-gpu-shell-fabv2-matrix-h0-20260713203919,binary task outcome,binary,executable verifier,1,1,True,False,False,run:0d766e55-4457-48d4-84cf-d1fb94c75fdd,schema observed
+rsi-gpu-shell-fabv2-matrix-h2-smoke-20260713202549,binary task outcome,binary,executable verifier,1,1,True,False,False,run:b4b357d6-ff79-4696-9da0-f90dcc39a07b,schema observed
+rsi-gpu-shell-fabv2-matrix-smoke-1783994758,binary task outcome,binary,executable verifier,1,5,True,False,False,run:4c94953b-f631-4fd7-948d-82305e9c9fa4,schema observed
+rsi-gpu-shell-fhc-aoe-20260715232322,binary task outcome,binary,executable verifier,1,1,True,False,False,run:f2c9e01a-4fa0-4913-97aa-498950196d7e,schema observed
+rsi-gpu-shell-gemma-harness-20260629010831,binary task outcome,binary,executable verifier,1,1,True,False,False,run:ca6327e0-ae84-4ab6-acef-ef8ad2dd9da1,schema observed
+rsi-gpu-shell-gemma-harness-v1-20260629082024,binary task outcome,binary,executable verifier,1,1,True,False,False,run:b4f7c7f1-b4a3-4476-9d63-a5b91f8c23f5,schema observed
+rsi-gpu-shell-gptoss-h0-20260714233201,binary task outcome,binary,executable verifier,1,1,True,False,False,run:c4871485-7ba2-49d8-8aa4-45ac4adc51bf,schema observed
+rsi-gpu-shell-gptoss-h4-modal-20260715002654,binary task outcome,binary,executable verifier,1,1,True,False,False,run:aa9e73a0-5730-42d6-8465-368ac75de2cc,schema observed
+rsi-gpu-shell-gptoss-h5-coreweave-20260714234933,binary task outcome,binary,executable verifier,1,1,True,False,False,run:d77fe211-f68a-4838-8616-f59c4bfa320c,schema observed
+rsi-gpu-shell-m2q35h0-20260714223918,binary task outcome,binary,executable verifier,1,1,True,False,False,run:76c77bc8-e1c8-4392-8796-c52b9508d9a7,schema observed
+rsi-gpu-shell-m2q35h4-20260714215304,binary task outcome,binary,executable verifier,1,1,True,False,False,run:12bf3f10-b8dd-4dd1-a4e0-26cfb35be2a8,schema observed
+rsi-gpu-shell-m2q35h5-20260714221851,binary task outcome,binary,executable verifier,1,1,True,False,False,run:e16c6c77-aea7-4806-9919-08082378cbb2,schema observed
+rsi-gpu-shell-nanochat-agentic-fv-20260701232612,binary task outcome,binary,executable verifier,1,1,True,False,False,run:fd25a5bc-b3fd-4a7b-9ef3-af0bdb7d3154,schema observed
+rsi-gpu-shell-nanochat-agentic-fv-real-20260701235005,binary task outcome,binary,executable verifier,1,1,True,False,False,run:1723ff1b-542a-4a7b-86cb-d7f9ac92debe,schema observed
+rsi-gpu-shell-nanochat-finance-vibecode-20260701143215,binary task outcome,binary,executable verifier,1,1,True,False,False,run:04a0eb70-973d-4f72-b65d-06a8c4431f35,schema observed
+rsi-gpu-shell-nchatckpt-07011539,binary task outcome,binary,executable verifier,1,1,True,False,False,run:e8366872-d72c-4762-8baa-56918e6fba51,schema observed
+rsi-gpu-shell-nfvtrain-07011459,binary task outcome,binary,executable verifier,1,1,True,False,False,run:9103e2ee-c3b7-47e3-9d2d-09fc59787bfc,schema observed
+rsi-gpu-shell-q9ar5d-0722105006,binary task outcome,binary,executable verifier,1,1,True,False,False,run:4776b77e-9555-403a-ae6b-6be745119ce2,schema observed
+rsi-gpu-shell-qwen35-base-fabv2-valcode-20260713182058,binary task outcome,binary,executable verifier,1,1,True,False,False,run:b548c9f2-6f16-498d-b753-7724616046e6,schema observed
+rsi-gpu-shell-qwen35rl-fabv2-20260702112041,binary task outcome,binary,executable verifier,1,1,True,False,False,run:b7a53bc5-df81-4344-b746-9fb77c151ebd,schema observed
+rsi-gpu-shell-rsi-closed-loop-48h-20260703145002,binary task outcome,binary,executable verifier,1,1,True,False,False,run:73253638-3cbc-46f8-a938-c6ea84a70e55,schema observed
+rsi-gpu-shell-vals-persona2-0701165556,binary task outcome,binary,executable verifier,1,1,True,False,False,run:ca425640-46e7-4e8f-ac8e-aaf89e2c3a63,schema observed
+skillsbench,binary task outcome,binary,unknown,1,87,True,False,False,run:9c2ab490-1e75-425b-aa6d-38097fedfef8,schema observed
+snap,graded / continuous,continuous,LLM judge or rubric evaluator,1,1,False,True,True,run:bc8be4b9-36a7-4e65-aab2-ba91f7f52b14,schema observed
+snap-pilot,graded / continuous,continuous,LLM judge or rubric evaluator,1,230,False,True,True,run:97c0f73a-ac1c-4257-84e6-44f9aaebd08a,schema observed
+social-mobility,unknown,unknown,LLM judge or rubric evaluator,1,15,False,False,True,run:78d52ad4-6b97-4ed2-b3d3-c4262c4f2d92,unknown
+srebench,mixed binary and partial credit,unknown,unknown,1,176,True,True,False,run:990e3a7c-a8c5-4ed3-9d6f-08fd3956377e,schema observed
+swebench,binary task outcome,binary,executable verifier,53,25621,True,False,False,https://www.swebench.com/,documented and schema checked
+swesmith,binary task outcome,binary,executable verifier,1,3,True,False,False,run:ad13bafb-b7b3-4a63-bd1d-f18710a7cf1f,schema observed
+tax-eval-v3,graded / continuous,continuous,LLM judge or rubric evaluator,10,570,False,True,True,run:05cfe543-d5bf-4c91-8c95-ba59f8280fbe,schema observed
+terminal-bench,binary task outcome,binary,executable verifier,112,9941,True,False,False,https://www.vals.ai/benchmarks/terminal-bench-2-1,documented and schema checked
+terminal-bench-local,binary task outcome,binary,executable verifier,1,1,True,False,False,https://www.vals.ai/benchmarks/terminal-bench-2-1,documented and schema checked
+terminus,binary task outcome,binary,executable verifier,1,1,True,False,False,https://www.vals.ai/benchmarks/terminal-bench-2-1,documented and schema checked
+valsmith,binary task outcome,binary,executable verifier,1,45,True,False,False,run:a57e72cc-a506-4370-a658-add08c789640,schema observed
+valsmith-generation,binary task outcome,binary,unknown,1,1,True,False,False,run:387a75b9-e3ae-47d7-ab40-a53ceb87518d,schema observed
+valsmith-task-filter,binary task outcome,binary,unknown,1,1,True,False,False,run:a2102b34-de02-4dae-a9b5-22022254c642,schema observed
+vcb,graded / continuous,continuous,agentic UI evaluator,71,3309,True,True,False,https://www.vals.ai/benchmarks/vibe-code,documented and schema checked
+vcb-1-100,graded / continuous,continuous,agentic UI evaluator,1,62,True,True,False,https://www.vals.ai/benchmarks/vibe-code,documented and schema checked
+voice-code-bench,mixed binary and partial credit,unknown,unknown,1,1,True,True,False,run:5f6dcf01-8baf-4c13-bd6a-6bba93b95d98,schema observed
+web-search,mixed binary and partial credit,unknown,LLM judge or rubric evaluator,1,208,True,True,True,run:568775a9-30f1-4e46-b609-4e9689bedb41,schema observed

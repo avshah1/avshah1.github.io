@@ -1,0 +1,4 @@
+benchmark,dominant_agent,dominant_dataset,dominant_task_count,models,tasks,mean_raw_pairwise_corr,median_raw_pairwise_corr,mean_residual_pairwise_corr,median_residual_pairwise_corr,strong_models_within_10pp,best_pass_rate,max_strong_pair_oracle_gain
+terminal-bench,terminus2,terminal-bench-2.1,89,54,89,0.4170084093698485,0.4259911480936811,-0.01886116767168477,-0.028394564401697686,10,0.8314606741573034,0.11627906976744184
+swebench,mini_sweagent,default,500,47,500,0.48313366168492283,0.5037889875729262,-0.02085931816051698,-0.039193883930374984,6,0.962,0.05210420841683372
+legal-research,legal_research_agent,test,208,23,208,0.3545606972119692,0.359622542685713,-0.043956325568067264,-0.057303840962871666,5,0.4830917874396135,0.12499999999999994
