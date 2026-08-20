@@ -76,6 +76,98 @@
     { id: "udaipur-aurika", name: "Aurika, Udaipur", city: "Udaipur", sortOrder: 70 },
     { id: "udaipur-wyndham-grand-fateh-sagar", name: "Wyndham Grand Udaipur Fateh Sagar Lake", city: "Udaipur", sortOrder: 80 },
   ];
+  const VENUE_COLLATION = {
+    "jaipur-anantara-jewel-bagh": {
+      rawAverage: 8,
+      adjustedAverage: 8,
+      scoreRespondentCount: 7,
+      evidenceLabel: "Well compared",
+      rankEligible: true,
+      officialRank: 2,
+      tourSummary: "The group liked the many event spaces, especially the rooftop and smaller nooks, along with strong room amenities, service, scent, and sound synchronization. The entrance and lobby do not create instant grandeur, rooms and suite inventory drew some concern, Wi-Fi was poor, and the unfinished rooftop and approach would need attention.",
+    },
+    "jaipur-taj-devi-ratn": {
+      rawAverage: 4.97,
+      adjustedAverage: 5.03,
+      scoreRespondentCount: 7,
+      evidenceLabel: "Well compared",
+      rankEligible: true,
+      officialRank: 4,
+      tourSummary: "The drive-up, lobby, natural light, villa, pool, and large lawn created some appealing moments, with wheelchair-friendly elements as a plus. Repeated concerns were that the property is too spread out and golf-cart dependent, while many indoor spaces fit only roughly 70–80 people and the dated, corporate interiors did not feel like a five-star wedding.",
+    },
+    "jaipur-itc-rajputana": {
+      rawAverage: null,
+      adjustedAverage: null,
+      scoreRespondentCount: 0,
+      evidenceLabel: "No usable ratings",
+      rankEligible: false,
+      officialRank: null,
+      tourSummary: "No substantive notes or usable scores were submitted, so there is not enough family evidence to summarize it.",
+    },
+    "jaipur-leela-palace": {
+      rawAverage: 8.72,
+      adjustedAverage: 8.18,
+      scoreRespondentCount: 5,
+      evidenceLabel: "Well compared",
+      rankEligible: true,
+      officialRank: 1,
+      tourSummary: "The notes describe immediate wow factor: a gorgeous entry, attractive villas, an air-conditioned elevator, a 4,500-square-foot ballroom, and a polished look needing relatively little decor. The consistent concern is cost, compounded by room and extra-bed limits, excluded premium suites, and a restaurant that may remain accessible despite a buyout.",
+    },
+    "kumbhalgarh-raajsa-resort": {
+      rawAverage: 7.07,
+      adjustedAverage: 6.8,
+      scoreRespondentCount: 6,
+      evidenceLabel: "Well compared",
+      rankEligible: true,
+      officialRank: 3,
+      tourSummary: "Its fort-like arrival, lush courtyards, lawns, views, pools, and warm hospitality make the outdoor experience its strongest case, with substantial room inventory. The rooms and interiors felt dated or basic, with upkeep, odor, and AC concerns; it is also spread out, buggy constrained, and weakest indoors, so the wedding would need to live mostly outside.",
+    },
+    "udaipur-trident": {
+      rawAverage: null,
+      adjustedAverage: null,
+      scoreRespondentCount: 0,
+      evidenceLabel: "No usable ratings",
+      rankEligible: false,
+      officialRank: null,
+      tourSummary: "No one submitted a direct note or score. Its lawn appeared only as an unverified possibility for pairing with Aurika, and the group explicitly had not seen it.",
+    },
+    "udaipur-taj-lalit-bagh": {
+      rawAverage: 7.53,
+      adjustedAverage: 7,
+      scoreRespondentCount: 3,
+      evidenceLabel: "Limited evidence",
+      rankEligible: false,
+      officialRank: null,
+      tourSummary: "The venue felt understated and royal, with excellent suites, a very large front lawn, built-in stage, airport convenience, a strong ballroom, and excellent dinner. Against that, several people found it sparse or plain for the price and expected substantially more decor spending.",
+    },
+    "udaipur-fateh-collection": {
+      rawAverage: 6.88,
+      adjustedAverage: 6.37,
+      scoreRespondentCount: 2,
+      evidenceLabel: "Too early",
+      rankEligible: false,
+      officialRank: null,
+      tourSummary: "The palatial arrival, mountain views, pooja courtyard, heritage character, and distinctive, often spacious rooms gave it genuine uniqueness. The tradeoffs were a small banquet space, persistent odor and poor welcome drinks, a rustic rather than luxurious feel, city congestion and airport travel, and difficult navigation for elderly guests.",
+    },
+    "udaipur-aurika": {
+      rawAverage: 7.25,
+      adjustedAverage: 6.75,
+      scoreRespondentCount: 2,
+      evidenceLabel: "Too early",
+      rankEligible: false,
+      officialRank: null,
+      tourSummary: "Beautiful exterior, views, nooks, welcome, and rooms created charm, including a strong presidential suite. But the group found the event spaces small, limited, and congested, with only four suites and no elevator AC; making it work may depend on a Trident-lawn combination that was never inspected.",
+    },
+    "udaipur-wyndham-grand-fateh-sagar": {
+      rawAverage: 8,
+      adjustedAverage: 7.5,
+      scoreRespondentCount: 2,
+      evidenceLabel: "Too early",
+      rankEligible: false,
+      officialRank: null,
+      tourSummary: "It delivered a strong welcome, substantial and consistent room inventory, pools, terraces, lawns, and many event-space possibilities. Concerns were a generic or internally inconsistent hotel feel, ordinary amenities, limited buggies, high cost, and important spaces excluded from the base package.",
+    },
+  };
   const STORAGE = {
     profile: "venue-scout:v1:profile",
     venues: "venue-scout:v1:venues",
@@ -1753,13 +1845,41 @@
     return "early";
   }
 
+  function collatedResult(venueId, result = state.results[venueId]) {
+    const snapshot = VENUE_COLLATION[venueId] || {};
+    const hasField = (key) => Boolean(result && Object.prototype.hasOwnProperty.call(result, key));
+    return {
+      venueId,
+      ...snapshot,
+      ...(result || {}),
+      rawAverage: hasField("rawAverage") ? (typeof result.rawAverage === "number" ? result.rawAverage : null) : snapshot.rawAverage ?? null,
+      adjustedAverage: hasField("adjustedAverage") ? (typeof result.adjustedAverage === "number" ? result.adjustedAverage : null) : snapshot.adjustedAverage ?? null,
+      scoreRespondentCount: hasField("scoreRespondentCount") && Number.isInteger(result.scoreRespondentCount)
+        ? result.scoreRespondentCount
+        : snapshot.scoreRespondentCount ?? 0,
+      evidenceLabel: hasField("evidenceLabel") ? result.evidenceLabel : snapshot.evidenceLabel || "No usable ratings",
+      rankEligible: hasField("rankEligible") ? Boolean(result.rankEligible) : Boolean(snapshot.rankEligible),
+      officialRank: hasField("officialRank") ? (Number.isInteger(result.officialRank) ? result.officialRank : null) : snapshot.officialRank ?? null,
+      tourSummary: result?.tourSummary || snapshot.tourSummary || "No tour notes were submitted.",
+    };
+  }
+
+  function evidenceClass(label) {
+    if (label === "Well compared") return "strong";
+    if (label === "Limited evidence") return "limited";
+    return "early";
+  }
+
   function rankResults(results) {
-    const sorted = results.filter((result) => typeof result.average === "number").sort((a, b) => b.average - a.average);
+    const sorted = results
+      .filter((result) => result.rankEligible && typeof result.adjustedAverage === "number")
+      .sort((a, b) => b.adjustedAverage - a.adjustedAverage);
     let prior = null;
     let rank = 0;
     return sorted.map((result, index) => {
-      if (prior === null || Math.abs(result.average - prior) > 1e-9) rank = index + 1;
-      prior = result.average;
+      if (Number.isInteger(result.officialRank)) return { ...result, rank: result.officialRank };
+      if (prior === null || Math.abs(result.adjustedAverage - prior) > 1e-9) rank = index + 1;
+      prior = result.adjustedAverage;
       return { ...result, rank };
     });
   }
@@ -1780,118 +1900,110 @@
     state.screen = "venue-result";
     state.selectedResultVenueId = venueId;
     const venue = state.venues.find((item) => item.id === venueId);
-    const result = state.results[venueId];
     if (!venue) {
       setScreen("venues");
       return;
     }
+    const result = collatedResult(venueId);
     const submitted = Boolean(state.submissions[venueId] || queuedSubmission(venueId));
     const primaryAction = submitted ? "Edit" : "Rate";
+    const scoreAvailable = typeof result.adjustedAverage === "number";
+    const rawCopy = typeof result.rawAverage === "number" ? `Raw ${result.rawAverage.toFixed(1)}` : "No usable score";
+    const count = result.scoreRespondentCount || 0;
+    const insights = result.insights;
+    const quotes = Array.isArray(insights?.quotes) ? insights.quotes.slice(0, 2) : [];
+    const quoteSection = quotes.length ? `
+      <section class="overheard-section">
+        <p class="kicker">Notes</p>
+        <h2>What people said</h2>
+        ${quotes.map((quote) => `
+          <blockquote class="tour-quote">
+            <p>“${escapeHTML(quote.text || "")}”</p>
+          </blockquote>`).join("")}
+      </section>` : "";
+    const factorSection = result.factors ? `
+      <section class="venue-factor-section">
+        <h2>Raw category averages</h2>
+        <div class="factor-results">${factorResultsMarkup(result)}</div>
+      </section>` : "";
     const actionButtons = `
       <div class="venue-result-actions">
         <button type="button" class="button button-secondary" data-venue-result-notes>Notes</button>
         <button type="button" class="button button-primary" data-venue-result-rate>${primaryAction}</button>
       </div>`;
-    if (!result || typeof result.average !== "number") {
-      elements.main.innerHTML = `
-        <section class="venue-result-heading">
-          <button type="button" class="plain-back" data-venue-result-back>← Back</button>
-          <p class="kicker">${escapeHTML(venue.city)}</p>
-          <h1>${escapeHTML(venue.name)}</h1>
-        </section>
-        <section class="result-lock">
-          <h2>Scores appear after 4 ratings</h2>
-          <p>${escapeHTML(waitingText(result) || "No ratings yet")}</p>
-        </section>
-        ${actionButtons}`;
-    } else {
-      const insights = result.insights;
-      const quotes = Array.isArray(insights?.quotes) ? insights.quotes.slice(0, 2) : [];
-      const overheard = insights ? `
-        <section class="overheard-section">
-          <p class="kicker">Notes</p>
-          <h2>Overheard on the venue tour</h2>
-          <p class="overheard-summary">${escapeHTML(insights.summary || "")}</p>
-          ${quotes.map((quote) => `
-            <blockquote class="tour-quote">
-              <p>“${escapeHTML(quote.text || "")}”</p>
-            </blockquote>`).join("")}
-        </section>` : "";
-      elements.main.innerHTML = `
-        <section class="venue-result-heading">
-          <button type="button" class="plain-back" data-venue-result-back>← Back</button>
-          <p class="kicker">${escapeHTML(venue.city)}</p>
-          <h1>${escapeHTML(venue.name)}</h1>
-        </section>
-        <section class="venue-result-hero">
-          <div class="venue-result-score"><strong>${result.average.toFixed(1)}</strong><span>/10</span></div>
-          <div><span class="agreement-pill ${agreementClass(result.agreement)}">${escapeHTML(result.agreement)}</span><p>${escapeHTML(insights?.vibe || `${result.respondentCount} people have rated this venue.`)}</p></div>
-        </section>
-        <section class="venue-factor-section"><h2>Score breakdown</h2><div class="factor-results">${factorResultsMarkup(result)}</div></section>
-        ${overheard}
-        ${actionButtons}`;
-    }
-    elements.main.querySelector("[data-venue-result-back]")?.addEventListener("click", () => setScreen("venues"));
+    elements.main.innerHTML = `
+      <section class="venue-result-heading">
+        <button type="button" class="plain-back" data-venue-result-back>← Back</button>
+        <p class="kicker">${escapeHTML(venue.city)}</p>
+        <h1>${escapeHTML(venue.name)}</h1>
+      </section>
+      <section class="venue-result-hero${scoreAvailable ? "" : " no-score"}">
+        <div class="venue-result-score"><strong>${scoreAvailable ? result.adjustedAverage.toFixed(1) : "—"}</strong>${scoreAvailable ? "<span>/10</span>" : ""}</div>
+        <div>
+          <span class="evidence-pill ${evidenceClass(result.evidenceLabel)}">${escapeHTML(result.evidenceLabel)}</span>
+          <p>Adjusted score · ${escapeHTML(rawCopy)} · ${count} numeric rating${count === 1 ? "" : "s"}</p>
+        </div>
+      </section>
+      <section class="tour-summary-section">
+        <p class="kicker">Tour summary</p>
+        <p>${escapeHTML(result.tourSummary)}</p>
+      </section>
+      ${factorSection}
+      ${quoteSection}
+      ${actionButtons}`;
+    elements.main.querySelector("[data-venue-result-back]")?.addEventListener("click", () => setScreen("results"));
     elements.main.querySelector("[data-venue-result-notes]")?.addEventListener("click", () => openNotes(venueId));
     elements.main.querySelector("[data-venue-result-rate]")?.addEventListener("click", () => openScorecard(venueId));
   }
 
   function renderResults() {
     state.screen = "results";
-    const allResults = Object.values(state.results);
+    const allResults = [...state.venues]
+      .sort((a, b) => (a.sortOrder ?? 999) - (b.sortOrder ?? 999))
+      .map((venue) => collatedResult(venue.id));
     const ranked = rankResults(allResults);
-    if (!allResults.length) {
-      elements.main.innerHTML = `
-        <section class="results-heading"><h1>Results</h1></section>
-        <section class="result-lock"><h2>No ratings yet</h2><button type="button" class="button button-primary" style="margin-top:1rem" data-go-rate>Venues</button></section>`;
-      elements.main.querySelector("[data-go-rate]").addEventListener("click", () => setScreen("venues"));
-      return;
-    }
 
     const podium = ranked.filter((result) => result.rank <= 3).map((result) => {
       const venue = state.venues.find((item) => item.id === result.venueId);
       return `
         <article class="podium-card">
           <span class="rank-medal" aria-label="Rank ${result.rank}">${result.rank === 1 ? "♛" : result.rank}</span>
-          <div class="podium-info"><h2>${escapeHTML(venue?.name || "Venue")}</h2><p>${result.respondentCount} scout${result.respondentCount === 1 ? "" : "s"} · ${escapeHTML(result.agreement)}</p></div>
-          <div class="big-score">${result.average.toFixed(1)}<small>/10</small></div>
+          <div class="podium-info"><h2>${escapeHTML(venue?.name || "Venue")}</h2><p>${result.scoreRespondentCount} rating${result.scoreRespondentCount === 1 ? "" : "s"} · adjusted</p></div>
+          <div class="big-score">${result.adjustedAverage.toFixed(1)}<small>/10</small></div>
         </article>`;
     }).join("");
 
-    const cards = allResults.sort((a, b) => {
+    const cards = [...allResults].sort((a, b) => {
+      const scoreA = typeof a.adjustedAverage === "number" ? a.adjustedAverage : -Infinity;
+      const scoreB = typeof b.adjustedAverage === "number" ? b.adjustedAverage : -Infinity;
+      if (scoreA !== scoreB) return scoreB - scoreA;
       const venueA = state.venues.find((venue) => venue.id === a.venueId);
       const venueB = state.venues.find((venue) => venue.id === b.venueId);
       return (venueA?.sortOrder ?? 999) - (venueB?.sortOrder ?? 999);
     }).map((result) => {
       const venue = state.venues.find((item) => item.id === result.venueId);
-      if (typeof result.average !== "number") {
-        return `
-          <article class="result-card result-card-waiting">
+      const hasScore = typeof result.adjustedAverage === "number";
+      const rawCopy = typeof result.rawAverage === "number" ? `Raw ${result.rawAverage.toFixed(1)}` : "No usable score";
+      const rankCopy = Number.isInteger(result.officialRank) ? `<span class="official-rank">Official #${result.officialRank}</span>` : "";
+      const header = `
+          <div class="result-card-summary">
             <div class="result-main">
               <h3>${escapeHTML(venue?.name || "Venue")}</h3>
-              <div class="result-meta"><span>${escapeHTML(waitingText(result))}</span><span>${result.respondentCount || 0} rated</span></div>
+              <div class="result-meta">${rankCopy}<span class="evidence-pill ${evidenceClass(result.evidenceLabel)}">${escapeHTML(result.evidenceLabel)}</span><span>${result.scoreRespondentCount} rating${result.scoreRespondentCount === 1 ? "" : "s"}</span></div>
             </div>
-          </article>`;
-      }
-      return `
-        <details class="result-card">
-          <summary>
-            <div class="result-main">
-              <h3>${escapeHTML(venue?.name || "Venue")}</h3>
-              <div class="result-meta"><span class="agreement-pill ${agreementClass(result.agreement)}">${escapeHTML(result.agreement)}</span>${result.provisional ? '<span class="provisional-pill">Provisional</span>' : ""}<span>${result.respondentCount} scout${result.respondentCount === 1 ? "" : "s"}</span></div>
-            </div>
-            <div class="result-score"><strong>${result.average.toFixed(1)}</strong><small>out of 10</small></div>
-          </summary>
-          <div class="factor-results">${factorResultsMarkup(result)}</div>
-        </details>`;
+            <div class="result-score"><strong>${hasScore ? result.adjustedAverage.toFixed(1) : "—"}</strong><small>Adjusted · ${escapeHTML(rawCopy)}</small></div>
+            <p class="result-summary">${escapeHTML(result.tourSummary)}</p>
+          </div>`;
+      if (!result.factors) return `<article class="result-card result-card-static">${header}</article>`;
+      return `<details class="result-card"><summary>${header}</summary><div class="factor-results">${factorResultsMarkup(result)}</div></details>`;
     }).join("");
 
     elements.main.innerHTML = `
       <section class="results-heading"><h1>Results</h1><button type="button" class="button button-secondary button-small" style="margin-top:0.85rem" data-refresh-results>↻ Refresh</button></section>
-      ${podium ? `<section class="podium" aria-label="Current top three">${podium}</section>` : '<section class="result-lock"><h2>Scores appear after 4 ratings</h2></section>'}
+      ${podium ? `<section class="podium" aria-label="Adjusted top three">${podium}</section>` : ""}
       <h2 class="results-list-title">All venues</h2>
       ${cards}
-      <details class="method-note"><summary>How scores work</summary><p>${escapeHTML(state.method)} Agreement is based on score dispersion.</p></details>`;
+      <details class="method-note"><summary>How scores work</summary><p>Adjusted scores account for each person’s general generosity or strictness. The five factors are equally weighted and N/A is excluded. Venues with fewer than four numeric ratings are shown, but they do not enter the official top three.</p></details>`;
     elements.main.querySelector("[data-refresh-results]").addEventListener("click", async (event) => {
       event.currentTarget.disabled = true;
       await syncOutbox();

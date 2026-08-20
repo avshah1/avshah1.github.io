@@ -1243,7 +1243,8 @@ code {
 }
 
 .venue-factor-section,
-.overheard-section {
+.overheard-section,
+.tour-summary-section {
   margin-top: 1rem;
   padding: 1rem;
   border: 1px solid rgba(59, 16, 40, 0.1);
@@ -1260,6 +1261,13 @@ code {
 
 .overheard-section > h2 {
   margin-top: 0.25rem;
+}
+
+.tour-summary-section > p:last-child {
+  margin: 0.3rem 0 0;
+  color: var(--ink);
+  font-size: 0.88rem;
+  line-height: 1.58;
 }
 
 .overheard-summary {
@@ -1934,12 +1942,8 @@ code {
 }
 
 .result-card summary {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 0.7rem;
-  min-height: 72px;
-  padding: 0.85rem 1rem;
+  display: block;
+  padding: 0;
   list-style: none;
 }
 
@@ -1950,6 +1954,24 @@ code {
 .result-card summary::after {
   position: absolute;
   content: "";
+}
+
+.result-card-summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.7rem;
+  min-height: 72px;
+  padding: 0.9rem 1rem;
+}
+
+.result-card details,
+.result-card summary {
+  cursor: pointer;
+}
+
+.result-card-static .result-card-summary {
+  cursor: default;
 }
 
 .result-main h3 {
@@ -1968,7 +1990,9 @@ code {
 }
 
 .agreement-pill,
-.provisional-pill {
+.provisional-pill,
+.evidence-pill,
+.official-rank {
   display: inline-flex;
   align-items: center;
   padding: 0.2rem 0.48rem;
@@ -1990,9 +2014,25 @@ code {
 }
 
 .agreement-pill.early,
-.provisional-pill {
+.provisional-pill,
+.evidence-pill.early {
   background: #eee8eb;
   color: #6d5962;
+}
+
+.evidence-pill.strong {
+  background: #e4f1eb;
+  color: #24634d;
+}
+
+.evidence-pill.limited {
+  background: #fff0d4;
+  color: #8d5a16;
+}
+
+.official-rank {
+  background: #f8e5bd;
+  color: var(--wine);
 }
 
 .result-score {
@@ -2007,8 +2047,18 @@ code {
 }
 
 .result-score small {
+  display: block;
   color: var(--muted);
   font-size: 0.58rem;
+  line-height: 1.25;
+}
+
+.result-summary {
+  grid-column: 1 / -1;
+  margin: 0.05rem 0 0;
+  color: var(--ink);
+  font-size: 0.78rem;
+  line-height: 1.52;
 }
 
 .factor-results {
