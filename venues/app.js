@@ -141,8 +141,8 @@
       tourSummary: "The venue felt understated and royal, with excellent suites, a very large front lawn, built-in stage, airport convenience, a strong ballroom, and excellent dinner. Against that, several people found it sparse or plain for the price and expected substantially more decor spending.",
     },
     "udaipur-fateh-collection": {
-      rawAverage: 6.88,
-      adjustedAverage: 6.37,
+      rawAverage: 7.25,
+      adjustedAverage: 6.75,
       scoreRespondentCount: 2,
       evidenceLabel: "Too early",
       rankEligible: false,
@@ -168,6 +168,22 @@
       tourSummary: "It delivered a strong welcome, substantial and consistent room inventory, pools, terraces, lawns, and many event-space possibilities. Concerns were a generic or internally inconsistent hotel feel, ordinary amenities, limited buggies, high cost, and important spaces excluded from the base package.",
     },
   };
+  const DECISION_TIERS = [
+    {
+      label: "Top tier",
+      className: "top",
+      venueIds: [
+        "jaipur-leela-palace",
+        "jaipur-anantara-jewel-bagh",
+        "udaipur-wyndham-grand-fateh-sagar",
+      ],
+    },
+    {
+      label: "Second tier",
+      className: "second",
+      venueIds: ["kumbhalgarh-raajsa-resort", "udaipur-fateh-collection"],
+    },
+  ];
   const STORAGE = {
     profile: "venue-scout:v1:profile",
     venues: "venue-scout:v1:venues",
@@ -1961,17 +1977,24 @@
     const allResults = [...state.venues]
       .sort((a, b) => (a.sortOrder ?? 999) - (b.sortOrder ?? 999))
       .map((venue) => collatedResult(venue.id));
-    const ranked = rankResults(allResults);
-
-    const podium = ranked.filter((result) => result.rank <= 3).map((result) => {
-      const venue = state.venues.find((item) => item.id === result.venueId);
-      return `
-        <article class="podium-card">
-          <span class="rank-medal" aria-label="Rank ${result.rank}">${result.rank === 1 ? "♛" : result.rank}</span>
-          <div class="podium-info"><h2>${escapeHTML(venue?.name || "Venue")}</h2><p>${result.scoreRespondentCount} rating${result.scoreRespondentCount === 1 ? "" : "s"} · adjusted</p></div>
-          <div class="big-score">${result.adjustedAverage.toFixed(1)}<small>/10</small></div>
-        </article>`;
-    }).join("");
+    const resultsByVenue = new Map(allResults.map((result) => [result.venueId, result]));
+    const shortlist = DECISION_TIERS.map((tier) => `
+      <section class="shortlist-tier shortlist-tier-${tier.className}">
+        <h2>${escapeHTML(tier.label)}</h2>
+        <div class="shortlist-tier-grid">
+          ${tier.venueIds.map((venueId) => {
+            const venue = state.venues.find((item) => item.id === venueId);
+            const result = resultsByVenue.get(venueId) || collatedResult(venueId);
+            const hasScore = typeof result.adjustedAverage === "number";
+            const count = result.scoreRespondentCount || 0;
+            return `
+              <button type="button" class="shortlist-card" data-tier-venue="${escapeHTML(venueId)}">
+                <span><strong>${escapeHTML(venue?.name || "Venue")}</strong><small>${count} rating${count === 1 ? "" : "s"}</small></span>
+                <b>${hasScore ? result.adjustedAverage.toFixed(1) : "—"}<small>${hasScore ? "/10" : ""}</small></b>
+              </button>`;
+          }).join("")}
+        </div>
+      </section>`).join("");
 
     const cards = [...allResults].sort((a, b) => {
       const scoreA = typeof a.adjustedAverage === "number" ? a.adjustedAverage : -Infinity;
@@ -2000,10 +2023,13 @@
 
     elements.main.innerHTML = `
       <section class="results-heading"><h1>Results</h1><button type="button" class="button button-secondary button-small" style="margin-top:0.85rem" data-refresh-results>↻ Refresh</button></section>
-      ${podium ? `<section class="podium" aria-label="Adjusted top three">${podium}</section>` : ""}
+      <section class="shortlist" aria-label="Current shortlist">${shortlist}</section>
       <h2 class="results-list-title">All venues</h2>
       ${cards}
-      <details class="method-note"><summary>How scores work</summary><p>Adjusted scores account for each person’s general generosity or strictness. The five factors are equally weighted and N/A is excluded. Venues with fewer than four numeric ratings are shown, but they do not enter the official top three.</p></details>`;
+      <details class="method-note"><summary>How scores work</summary><p>The shortlist tiers reflect the overall tour decision, not automatic score cutoffs. Adjusted scores account for each person’s general generosity or strictness. The five factors are equally weighted and N/A is excluded.</p></details>`;
+    elements.main.querySelectorAll("[data-tier-venue]").forEach((button) => {
+      button.addEventListener("click", () => renderVenueResult(button.dataset.tierVenue));
+    });
     elements.main.querySelector("[data-refresh-results]").addEventListener("click", async (event) => {
       event.currentTarget.disabled = true;
       await syncOutbox();

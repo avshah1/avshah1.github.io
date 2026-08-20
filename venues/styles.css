@@ -1807,6 +1807,83 @@ code {
   padding: 1rem 0 1.25rem;
 }
 
+.shortlist {
+  display: grid;
+  gap: 1rem;
+  margin-bottom: 1.4rem;
+}
+
+.shortlist-tier {
+  padding: 0.85rem;
+  border: 1px solid rgba(59, 16, 40, 0.1);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.52);
+}
+
+.shortlist-tier-top {
+  border-color: rgba(236, 154, 56, 0.42);
+  background: linear-gradient(135deg, #fff6d9, #fffdf8);
+}
+
+.shortlist-tier h2 {
+  margin: 0 0 0.65rem;
+  color: var(--wine);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.08rem;
+}
+
+.shortlist-tier-grid {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.shortlist-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 68px;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid rgba(59, 16, 40, 0.09);
+  border-radius: 15px;
+  background: var(--paper);
+  color: var(--ink);
+  text-align: left;
+  box-shadow: 0 5px 16px rgba(59, 16, 40, 0.045);
+}
+
+.shortlist-card span,
+.shortlist-card strong,
+.shortlist-card small {
+  display: block;
+}
+
+.shortlist-card strong {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 0.96rem;
+  line-height: 1.2;
+}
+
+.shortlist-card span > small {
+  margin-top: 0.22rem;
+  color: var(--muted);
+  font-size: 0.65rem;
+  font-weight: 720;
+}
+
+.shortlist-card b {
+  color: var(--wine);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.45rem;
+}
+
+.shortlist-card b small {
+  display: inline;
+  color: var(--muted);
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.55rem;
+}
+
 .result-lock {
   padding: 2.2rem 1.2rem;
   border: 1px dashed rgba(59, 16, 40, 0.2);
@@ -2258,6 +2335,14 @@ code {
 
   .podium {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .shortlist-tier-top .shortlist-tier-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .shortlist-tier-second .shortlist-tier-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .podium-card {
