@@ -50,7 +50,7 @@
     "Cool touches?",
     "Unique things that are possible here?",
   ];
-  const RETIRED_VENUE_IDS = new Set(["jaipur-shiv-vilas"]);
+  const RETIRED_VENUE_IDS = new Set(["jaipur-shiv-vilas", "jaipur-itc-rajputana", "udaipur-trident"]);
   const ADMIN_PROFILE_KEYS = new Set(["anand", "sara"]);
   const KNOWN_PEOPLE = [
     { name: "Anand", aliases: ["Anand", "Anand Shah"] },
@@ -84,7 +84,7 @@
       evidenceLabel: "Well compared",
       rankEligible: true,
       officialRank: 2,
-      tourSummary: "The group liked the many event spaces, especially the rooftop and smaller nooks, along with strong room amenities, service, scent, and sound synchronization. The entrance and lobby do not create instant grandeur, rooms and suite inventory drew some concern, Wi-Fi was poor, and the unfinished rooftop and approach would need attention.",
+      tourSummary: "The rooftop seemed awesome, the Rang Mahal room with its painted walls was beautiful, and breakfast was excellent. The many event spaces, smaller nooks, strong service, scent, and synchronized sound impressed the group, although the entrance lacked instant grandeur and there were concerns about rooms, suite inventory, poor Wi-Fi, and the unfinished rooftop approach.",
     },
     "jaipur-taj-devi-ratn": {
       rawAverage: 4.97,
@@ -111,7 +111,7 @@
       evidenceLabel: "Well compared",
       rankEligible: true,
       officialRank: 1,
-      tourSummary: "The notes describe immediate wow factor: a gorgeous entry, attractive villas, an air-conditioned elevator, a 4,500-square-foot ballroom, and a polished look needing relatively little decor. The consistent concern is cost, compounded by room and extra-bed limits, excluded premium suites, and a restaurant that may remain accessible despite a buyout.",
+      tourSummary: "The smell was the best part and set an immediately luxurious tone, alongside a gorgeous entry, attractive villas, an air-conditioned elevator, a 4,500-square-foot ballroom, and a polished look needing relatively little decor. The consistent concern is cost, compounded by room and extra-bed limits, excluded premium suites, and a restaurant that may remain accessible despite a buyout.",
     },
     "kumbhalgarh-raajsa-resort": {
       rawAverage: 7.07,
@@ -120,7 +120,7 @@
       evidenceLabel: "Well compared",
       rankEligible: true,
       officialRank: 3,
-      tourSummary: "Its fort-like arrival, lush courtyards, lawns, views, pools, and warm hospitality make the outdoor experience its strongest case, with substantial room inventory. The rooms and interiors felt dated or basic, with upkeep, odor, and AC concerns; it is also spread out, buggy constrained, and weakest indoors, so the wedding would need to live mostly outside.",
+      tourSummary: "Raajsa had incredible outdoor spaces: a fort-like arrival, lush courtyards, lawns, views, pools, and warm hospitality. Its indoor spaces were poor by comparison, with dated or basic rooms, upkeep, odor, and AC concerns; it is also spread out and buggy constrained, so the wedding would need to live mostly outside.",
     },
     "udaipur-trident": {
       rawAverage: null,
@@ -138,7 +138,7 @@
       evidenceLabel: "Limited evidence",
       rankEligible: false,
       officialRank: null,
-      tourSummary: "The venue felt understated and royal, with excellent suites, a very large front lawn, built-in stage, airport convenience, a strong ballroom, and excellent dinner. Against that, several people found it sparse or plain for the price and expected substantially more decor spending.",
+      tourSummary: "Taj Lalit Bagh was beautiful but felt slightly understated, with excellent suites, a very large front lawn, built-in stage, airport convenience, a strong ballroom, and excellent dinner. Several people still found it sparse or plain for the price and expected substantially more decor spending.",
     },
     "udaipur-fateh-collection": {
       rawAverage: 7.25,
@@ -147,7 +147,7 @@
       evidenceLabel: "Too early",
       rankEligible: false,
       officialRank: null,
-      tourSummary: "The palatial arrival, mountain views, pooja courtyard, heritage character, and distinctive, often spacious rooms gave it genuine uniqueness. The tradeoffs were a small banquet space, persistent odor and poor welcome drinks, a rustic rather than luxurious feel, city congestion and airport travel, and difficult navigation for elderly guests.",
+      tourSummary: "Fateh had a great heritage feeling, with a palatial arrival, mountain views, a pretty pooja courtyard, and genuine character. It did not deliver much wow factor through its amenities or rooms, and the tradeoffs included a small banquet space, persistent odor, poor welcome drinks, city congestion, airport travel, and difficult navigation for elderly guests.",
     },
     "udaipur-aurika": {
       rawAverage: 7.25,
@@ -165,7 +165,7 @@
       evidenceLabel: "Too early",
       rankEligible: false,
       officialRank: null,
-      tourSummary: "It delivered a strong welcome, substantial and consistent room inventory, pools, terraces, lawns, and many event-space possibilities. Concerns were a generic or internally inconsistent hotel feel, ordinary amenities, limited buggies, high cost, and important spaces excluded from the base package.",
+      tourSummary: "The mandap was amazing, and the pool felt perfect for a swimgeet, backed by a strong welcome, substantial room inventory, terraces, lawns, and many event-space possibilities. Concerns were a generic or internally inconsistent hotel feel, ordinary amenities, limited buggies, high cost, and important spaces excluded from the base package.",
     },
   };
   const DECISION_TIERS = [
@@ -300,6 +300,7 @@
       .filter((venue) => !RETIRED_VENUE_IDS.has(venue.id))
       .map((venue) => [venue.id, venue]));
     SEED_VENUES.forEach((venue) => {
+      if (RETIRED_VENUE_IDS.has(venue.id)) return;
       merged.set(venue.id, { ...(merged.get(venue.id) || {}), ...venue });
     });
     return [...merged.values()];
@@ -1520,7 +1521,7 @@
     state.screen = "venues";
     const sorted = [...state.venues].sort((a, b) => (a.sortOrder ?? 999) - (b.sortOrder ?? 999) || a.name.localeCompare(b.name));
     const cities = [...new Set(sorted.map((venue) => venue.city))];
-    const submittedCount = Object.keys(state.submissions).length;
+    const submittedCount = sorted.filter((venue) => Boolean(state.submissions[venue.id])).length;
     const progress = sorted.length ? Math.min(100, (submittedCount / sorted.length) * 100) : 0;
     const groups = cities.map((city) => {
       const cards = sorted.filter((venue) => venue.city === city).map((venue, index) => {
@@ -1553,7 +1554,7 @@
         <h1>Venue Rating</h1>
         <div class="progress-summary" aria-label="${submittedCount} of ${sorted.length} venues submitted">
           <div class="progress-track"><div class="progress-fill" style="width:${progress}%"></div></div>
-          <span>${submittedCount} / ${sorted.length} synced</span>
+          <span>${submittedCount} / ${sorted.length} rated</span>
         </div>
       </section>
       <div class="list-toolbar">
