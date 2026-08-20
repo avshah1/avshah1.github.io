@@ -84,7 +84,7 @@
       evidenceLabel: "Well compared",
       rankEligible: true,
       officialRank: 2,
-      tourSummary: "The rooftop seemed awesome, the Rang Mahal room with its painted walls was beautiful, and breakfast was excellent. The many event spaces, smaller nooks, strong service, scent, and synchronized sound impressed the group, although the entrance lacked instant grandeur and there were concerns about rooms, suite inventory, poor Wi-Fi, and the unfinished rooftop approach.",
+      tourSummary: "The group consistently liked the range of event spaces—especially the rooftop and its nooks, the painted Rang Mahal, and Amer Bagh—along with the chandan scent, room amenities, service, synchronized sound, and generally positive breakfast feedback. The entrance, lobby, and approach lacked instant grandeur, while the unfinished rooftop, limited suite inventory, mixed views on room size, poor Wi-Fi, and some event-capacity constraints would need attention.",
     },
     "jaipur-taj-devi-ratn": {
       rawAverage: 4.97,
@@ -93,7 +93,7 @@
       evidenceLabel: "Well compared",
       rankEligible: true,
       officialRank: 4,
-      tourSummary: "The drive-up, lobby, natural light, villa, pool, and large lawn created some appealing moments, with wheelchair-friendly elements as a plus. Repeated concerns were that the property is too spread out and golf-cart dependent, while many indoor spaces fit only roughly 70–80 people and the dated, corporate interiors did not feel like a five-star wedding.",
+      tourSummary: "The drive-up, gorgeous lobby, natural light, grounds, villa, spa, pool, bar, and large lawn created appealing moments, with thoughtful food and room amenities, a dedicated safa-bandhi area, and wheelchair access adding practical value. Repeated concerns were that the property was too spread out and golf-cart dependent, while many indoor spaces fit only about 70–80 people and the dated, corporate-feeling interiors did not deliver the palatial five-star wedding atmosphere the group wanted.",
     },
     "jaipur-itc-rajputana": {
       rawAverage: null,
@@ -111,7 +111,7 @@
       evidenceLabel: "Well compared",
       rankEligible: true,
       officialRank: 1,
-      tourSummary: "The smell was the best part and set an immediately luxurious tone, alongside a gorgeous entry, attractive villas, an air-conditioned elevator, a 4,500-square-foot ballroom, and a polished look needing relatively little decor. The consistent concern is cost, compounded by room and extra-bed limits, excluded premium suites, and a restaurant that may remain accessible despite a buyout.",
+      tourSummary: "The group found the property polished and immediately impressive, with a gorgeous, pleasantly scented entry, attractive villas, an air-conditioned elevator, and handsome event spaces—including the 4,500-square-foot ballroom—that would require relatively little decor. Cost was the clearest repeated concern, alongside the 180-room and 15-extra-bed limits, excluded Maharaja and Maharani suites, and restaurant access for outside guests even with a buyout.",
     },
     "kumbhalgarh-raajsa-resort": {
       rawAverage: 7.07,
@@ -120,7 +120,7 @@
       evidenceLabel: "Well compared",
       rankEligible: true,
       officialRank: 3,
-      tourSummary: "Raajsa had incredible outdoor spaces: a fort-like arrival, lush courtyards, lawns, views, pools, and warm hospitality. Its indoor spaces were poor by comparison, with dated or basic rooms, upkeep, odor, and AC concerns; it is also spread out and buggy constrained, so the wedding would need to live mostly outside.",
+      tourSummary: "Raajsa’s fort-like arrival, lush courtyards, lawns, views, pools, and warm hospitality give it strong outdoor-event potential, supported by 162 rooms and several useful gathering areas. The recurring concern is that the property feels dated and spread out: rooms, amenities, AC, odor and upkeep, and smaller halls fall short of the grounds, while limited buggies complicate movement.",
     },
     "udaipur-trident": {
       rawAverage: null,
@@ -138,7 +138,7 @@
       evidenceLabel: "Limited evidence",
       rankEligible: false,
       officialRank: null,
-      tourSummary: "Taj Lalit Bagh was beautiful but felt slightly understated, with excellent suites, a very large front lawn, built-in stage, airport convenience, a strong ballroom, and excellent dinner. Several people still found it sparse or plain for the price and expected substantially more decor spending.",
+      tourSummary: "Taj Lalit Bagh is beautiful, royal, and meticulously kept in an understated way, with excellent suites and food, a huge front lawn with a built-in stage, a standout ballroom, and convenient airport access. The consistent reservation is value: it is expensive despite feeling sparse or plain, and may need substantial decor to create a fuller wedding atmosphere.",
     },
     "udaipur-fateh-collection": {
       rawAverage: 7.25,
@@ -147,7 +147,7 @@
       evidenceLabel: "Too early",
       rankEligible: false,
       officialRank: null,
-      tourSummary: "Fateh had a great heritage feeling, with a palatial arrival, mountain views, a pretty pooja courtyard, and genuine character. It did not deliver much wow factor through its amenities or rooms, and the tradeoffs included a small banquet space, persistent odor, poor welcome drinks, city congestion, airport travel, and difficult navigation for elderly guests.",
+      tourSummary: "Fateh stands out for distinctive heritage character, with a palatial arrival, mountain views, a pretty pooja courtyard, and spacious, varied rooms that often have views, swings, or plunge pools. Its rustic feel may not read as full luxury to everyone, and the small banquet hall, pervasive odor, 40-minute city route, car needs, congestion, and accessibility challenges create real operational tradeoffs.",
     },
     "udaipur-aurika": {
       rawAverage: 7.25,
@@ -156,7 +156,7 @@
       evidenceLabel: "Too early",
       rankEligible: false,
       officialRank: null,
-      tourSummary: "Beautiful exterior, views, nooks, welcome, and rooms created charm, including a strong presidential suite. But the group found the event spaces small, limited, and congested, with only four suites and no elevator AC; making it work may depend on a Trident-lawn combination that was never inspected.",
+      tourSummary: "Aurika offers a pretty exterior and scented lobby, a thoughtful tikka welcome, attractive nooks, nice rooms with views, a strong presidential suite, and solid golf-cart support. The recurring challenge is fit: event spaces felt small, limited, and congested, suite inventory is thin and the elevators lack AC, while the possible Trident-lawn solution was not inspected.",
     },
     "udaipur-wyndham-grand-fateh-sagar": {
       rawAverage: 8,
@@ -165,7 +165,7 @@
       evidenceLabel: "Too early",
       rankEligible: false,
       officialRank: null,
-      tourSummary: "The mandap was amazing, and the pool felt perfect for a swimgeet, backed by a strong welcome, substantial room inventory, terraces, lawns, and many event-space possibilities. Concerns were a generic or internally inconsistent hotel feel, ordinary amenities, limited buggies, high cost, and important spaces excluded from the base package.",
+      tourSummary: "Wyndham pairs a grand, fragrant welcome with a large heated pool suited to a swimgeet, an appealing mandap, excellent terraces and jharokha seating, numerous event options, and roughly 150 rooms with useful suite and extra-bed capacity. The group split on whether the lobby and overall style felt polished or generic, while Taj-level pricing, ordinary bathroom amenities, only six buggies, and exclusion of the amphitheater and huge lawn from the base package are the clearest tradeoffs.",
     },
   };
   const DECISION_TIERS = [
