@@ -253,7 +253,8 @@
     questionPollTimer: null,
     questionSession: 0,
     method: cachedRemote.method || DEFAULT_METHOD,
-    screen: "venues",
+    screen: "results",
+    resultsCelebrated: false,
     selectedVenueId: null,
     selectedResultVenueId: null,
     loading: false,
@@ -821,6 +822,7 @@
     migrateLocalIdentity(previousKey, nextProfile.key, nextProfile.name);
     state.profile = nextProfile;
     resetQuestionState();
+    state.resultsCelebrated = false;
     resetBrainstormPermissions();
     state.brainstormEditingId = null;
     const personCache = readJSON(STORAGE.state, {});
@@ -852,8 +854,9 @@
     }
     elements.loginView.hidden = true;
     elements.appView.hidden = false;
-    state.screen = "venues";
+    state.screen = "results";
     renderCurrentScreen();
+    scheduleQuestionPoll(0);
     updateConnectionUI();
     if (greet) showToast(`Welcome, ${state.profile.name}!`);
     syncOutbox().then(() => refreshRemoteState({ silent: true }));
@@ -891,13 +894,13 @@
       clearTimeout(state.noteSyncTimer);
       syncOutbox();
     }
-    if (screen !== "ask") stopQuestionPolling();
+    if (screen !== "results") stopQuestionPolling();
     state.screen = screen;
     if (screen !== "score") state.selectedVenueId = null;
     if (screen !== "venue-result") state.selectedResultVenueId = null;
     renderCurrentScreen();
     if (screen === "brainstorm") refreshBrainstorm({ silent: true });
-    if (screen === "ask") scheduleQuestionPoll(0);
+    if (screen === "results") scheduleQuestionPoll(0);
     elements.main.focus({ preventScroll: true });
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -921,7 +924,6 @@
     if (state.screen === "score" && state.selectedVenueId) renderScorecard(state.selectedVenueId);
     else if (state.screen === "venue-result" && state.selectedResultVenueId) renderVenueResult(state.selectedResultVenueId);
     else if (state.screen === "results") renderResults();
-    else if (state.screen === "ask") renderAsk();
     else if (state.screen === "brainstorm") renderBrainstorm();
     else if (state.screen === "admin-notes" && isAdminProfile()) renderAdminNotes();
     else if (state.screen === "admin" && isAdminProfile()) renderAdmin();
@@ -947,11 +949,11 @@
 
   function scheduleQuestionPoll(delay = QUESTION_POLL_MS) {
     stopQuestionPolling();
-    if (state.screen !== "ask" || !state.profile || document.hidden || !navigator.onLine) return;
+    if (state.screen !== "results" || !state.profile || document.hidden || !navigator.onLine) return;
     state.questionPollTimer = setTimeout(async () => {
       state.questionPollTimer = null;
       await refreshQuestions({ silent: true });
-      if (state.screen === "ask") scheduleQuestionPoll();
+      if (state.screen === "results") scheduleQuestionPoll();
     }, delay);
   }
 
@@ -1035,7 +1037,7 @@
     if (!state.profile || state.questionLoading) return;
     if (!navigator.onLine) {
       if (!state.questionsLoaded) state.questionError = "Connect to load recent questions.";
-      if (state.screen === "ask") renderQuestionList();
+      if (state.screen === "results") renderQuestionList();
       return;
     }
     const questionSession = state.questionSession;
@@ -1056,7 +1058,7 @@
     } finally {
       if (questionSession === state.questionSession) {
         state.questionLoading = false;
-        if (state.screen === "ask") renderQuestionList();
+        if (state.screen === "results") renderQuestionList();
       }
     }
   }
@@ -1125,20 +1127,25 @@
     } finally {
       if (questionSession === state.questionSession) {
         state.questionSubmitting = false;
-        if (state.screen === "ask") {
-          renderAsk();
-          if (state.questionSubmitError) elements.main.querySelector("[data-ask-form] textarea")?.focus();
+        if (state.screen === "results") {
+          const mountedForm = elements.main.querySelector("[data-ask-form]");
+          if (mountedForm) {
+            mountedForm.querySelector("textarea").value = state.questionDraft;
+            mountedForm.querySelector("[data-question-error]").textContent = state.questionSubmitError;
+            updateAskFormUI();
+            if (state.questionSubmitError) mountedForm.querySelector("textarea")?.focus();
+          }
         }
       }
     }
   }
 
-  function renderAsk() {
-    state.screen = "ask";
-    elements.main.innerHTML = `
-      <section class="ask-page" aria-labelledby="ask-title">
-        <header class="ask-heading">
-          <h1 id="ask-title">Ask</h1>
+  function askResultsMarkup() {
+    return `
+      <section class="results-ask" aria-labelledby="ask-title">
+        <header class="results-ask-heading">
+          <h2 id="ask-title">Ask any questions</h2>
+          <p>We’ll answer using everyone’s notes and rankings.</p>
         </header>
         <form class="ask-composer" data-ask-form novalidate>
           <label class="sr-only" for="family-question">Your question</label>
@@ -1154,8 +1161,11 @@
           <div data-question-list aria-live="polite"></div>
         </section>
       </section>`;
+  }
 
+  function bindAskSection() {
     const form = elements.main.querySelector("[data-ask-form]");
+    if (!form) return;
     const editor = form.querySelector("textarea");
     editor.addEventListener("input", () => {
       state.questionDraft = editor.value;
@@ -2199,6 +2209,7 @@
   }
 
   function renderVenueResult(venueId) {
+    stopQuestionPolling();
     state.screen = "venue-result";
     state.selectedResultVenueId = venueId;
     const venue = state.venues.find((item) => item.id === venueId);
@@ -2260,6 +2271,8 @@
 
   function renderResults() {
     state.screen = "results";
+    const shouldCelebrate = !state.resultsCelebrated;
+    state.resultsCelebrated = true;
     const allResults = [...state.venues]
       .sort((a, b) => (a.sortOrder ?? 999) - (b.sortOrder ?? 999))
       .map((venue) => collatedResult(venue.id));
@@ -2308,11 +2321,21 @@
     }).join("");
 
     elements.main.innerHTML = `
-      <section class="results-heading"><h1>Results</h1><button type="button" class="button button-secondary button-small" style="margin-top:0.85rem" data-refresh-results>↻ Refresh</button></section>
+      <section class="results-celebration${shouldCelebrate ? " is-animated" : ""}" aria-labelledby="results-title">
+        <div class="celebration-confetti" aria-hidden="true">${Array.from({ length: 12 }, (_, index) => `<i style="--x:${(index * 37) % 100}%;--color:hsl(${(index * 43 + 12) % 360}, 70%, 52%);--tilt:${index * 29}deg;--delay:${index * 45}ms"></i>`).join("")}</div>
+        <p>WOOHOO, WE’RE DONE!</p>
+        <h1 id="results-title">WHAT ARE THE RESULTS?</h1>
+        <div class="results-top-actions">
+          <button type="button" class="button button-primary" data-more-ratings>Fill in more ratings</button>
+          <button type="button" class="button button-quiet button-small" data-refresh-results>↻ Refresh</button>
+        </div>
+      </section>
       <section class="shortlist" aria-label="Current shortlist">${shortlist}</section>
       <h2 class="results-list-title">All venues</h2>
       ${cards}
-      <details class="method-note"><summary>How scores work</summary><p>The shortlist tiers reflect the overall tour decision, not automatic score cutoffs. Adjusted scores account for each person’s general generosity or strictness. The five factors are equally weighted and N/A is excluded.</p></details>`;
+      <details class="method-note"><summary>How scores work</summary><p>The shortlist tiers reflect the overall tour decision, not automatic score cutoffs. Adjusted scores account for each person’s general generosity or strictness. The five factors are equally weighted and N/A is excluded.</p></details>
+      ${askResultsMarkup()}`;
+    elements.main.querySelector("[data-more-ratings]").addEventListener("click", () => setScreen("venues"));
     elements.main.querySelectorAll("[data-tier-venue]").forEach((button) => {
       button.addEventListener("click", () => renderVenueResult(button.dataset.tierVenue));
     });
@@ -2321,6 +2344,7 @@
       await syncOutbox();
       await refreshRemoteState({ silent: false });
     });
+    bindAskSection();
   }
 
   function openVenueDialog() {
@@ -2473,7 +2497,7 @@
     elements.acceptSuggestion.addEventListener("click", () => enterApp({ name: elements.suggestion.dataset.name }, true));
     elements.keepName.addEventListener("click", () => enterApp({ name: state.pendingName }, true));
     elements.profileButton.addEventListener("click", switchPerson);
-    elements.brandButton.addEventListener("click", () => setScreen("venues"));
+    elements.brandButton.addEventListener("click", () => setScreen("results"));
     elements.bottomNav.addEventListener("click", (event) => {
       const button = event.target.closest("button");
       if (!button) return;
@@ -2491,19 +2515,19 @@
     window.addEventListener("online", () => {
       updateConnectionUI();
       syncOutbox().then(() => refreshRemoteState({ silent: true, preserveEditor: noteEditorIsMounted() }));
-      if (state.screen === "ask") scheduleQuestionPoll(0);
+      if (state.screen === "results") scheduleQuestionPoll(0);
     });
     window.addEventListener("offline", () => {
       updateConnectionUI();
       stopQuestionPolling();
-      if (state.screen === "ask" && !state.questionsLoaded) {
+      if (state.screen === "results" && !state.questionsLoaded) {
         state.questionError = "Connect to load recent questions.";
         renderQuestionList();
       }
     });
     document.addEventListener("visibilitychange", () => {
       if (document.hidden) stopQuestionPolling();
-      else if (state.screen === "ask") scheduleQuestionPoll(0);
+      else if (state.screen === "results") scheduleQuestionPoll(0);
       if (!navigator.onLine) return;
       clearTimeout(state.noteSyncTimer);
       syncOutbox();
@@ -2515,7 +2539,7 @@
     });
     window.addEventListener("pageshow", () => {
       if (navigator.onLine) syncOutbox();
-      if (state.screen === "ask") scheduleQuestionPoll(0);
+      if (state.screen === "results") scheduleQuestionPoll(0);
     });
   }
 

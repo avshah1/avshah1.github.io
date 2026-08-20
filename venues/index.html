@@ -11,7 +11,7 @@
     <meta name="description" content="Sara and Anand's family wedding venue scorecard.">
     <title>Sara + Anand · Venue Scout</title>
     <link rel="manifest" href="manifest.webmanifest">
-    <link rel="stylesheet" href="styles.css?v=20260820-5">
+    <link rel="stylesheet" href="styles.css?v=20260820-6">
   </head>
   <body>
     <div id="offline-banner" class="connection-banner" role="status" aria-live="polite" hidden>
@@ -54,7 +54,7 @@
 
     <div id="app-view" class="app-view" hidden>
       <header class="app-header">
-        <button id="brand-button" class="brand-button" type="button" aria-label="Back to venues">
+        <button id="brand-button" class="brand-button" type="button" aria-label="Back to results">
           <span class="brand-mark" aria-hidden="true">S<span>✦</span>A</span>
           <span><small>Venue</small> Scout</span>
         </button>
@@ -70,14 +70,11 @@
       <footer class="site-credit">Developed with love by Claude (shocker), Sara, and Anand ❤️</footer>
 
       <nav id="bottom-nav" class="bottom-nav" aria-label="Primary navigation">
-        <button type="button" data-screen="venues" class="nav-item is-active" aria-current="page">
-          <span aria-hidden="true">⌂</span><span>Venues</span>
-        </button>
-        <button type="button" data-screen="results" class="nav-item">
+        <button type="button" data-screen="results" class="nav-item is-active" aria-current="page">
           <span aria-hidden="true">♛</span><span>Results</span>
         </button>
-        <button type="button" data-screen="ask" class="nav-item">
-          <span aria-hidden="true">?</span><span>Ask</span>
+        <button type="button" data-screen="venues" class="nav-item">
+          <span aria-hidden="true">⌂</span><span>Venues</span>
         </button>
         <button type="button" data-screen="brainstorm" class="nav-item">
           <span aria-hidden="true">✎</span><span>Brainstorm</span>
@@ -110,6 +107,6 @@
     <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
     <script src="config.js"></script>
-    <script src="app.js?v=20260820-5" defer></script>
+    <script src="app.js?v=20260820-6" defer></script>
   </body>
 </html>

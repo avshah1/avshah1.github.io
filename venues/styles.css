@@ -543,7 +543,7 @@ code {
   bottom: 0;
   left: 0;
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   padding: 0.45rem max(0.75rem, calc((100vw - 32rem) / 2)) calc(0.45rem + var(--safe-bottom));
   border-top: 1px solid rgba(59, 16, 40, 0.1);
   background: rgba(255, 253, 248, 0.94);
@@ -553,7 +553,7 @@ code {
 }
 
 .bottom-nav.has-admin {
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(5, 1fr);
 }
 
 .admin-notes-group {
@@ -951,23 +951,31 @@ code {
 }
 
 /* Questions */
-.ask-page {
-  width: min(100%, 38rem);
-  margin: 0 auto;
+.results-ask {
+  margin-top: 1.5rem;
+  padding-top: 1.35rem;
+  border-top: 1px solid rgba(59, 16, 40, 0.1);
 }
 
-.ask-heading {
-  padding: 0.55rem 0.15rem 0.75rem;
+.results-ask-heading {
+  padding: 0 0.15rem 0.75rem;
 }
 
-.ask-heading h1 {
-  margin: 0;
+.results-ask-heading h2 {
+  margin: 0 0 0.3rem;
   color: var(--wine);
   font-family: Georgia, "Times New Roman", serif;
-  font-size: clamp(2.3rem, 10vw, 3.5rem);
+  font-size: clamp(1.65rem, 7vw, 2.25rem);
   font-weight: 600;
-  letter-spacing: -0.05em;
+  letter-spacing: -0.035em;
   line-height: 1;
+}
+
+.results-ask-heading p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.45;
 }
 
 .ask-composer {
@@ -1986,8 +1994,109 @@ code {
 }
 
 /* Results */
-.results-heading {
-  padding: 1rem 0 1.25rem;
+.results-celebration {
+  position: relative;
+  margin: 0.25rem 0 1.25rem;
+  padding: 1.35rem 1rem 1.1rem;
+  overflow: hidden;
+  border: 1px solid rgba(236, 154, 56, 0.34);
+  border-radius: 24px;
+  background: linear-gradient(145deg, #fff1bd 0%, #fffaf0 48%, #f9e8e8 100%);
+  box-shadow: 0 12px 32px rgba(59, 16, 40, 0.08);
+  text-align: center;
+}
+
+.results-celebration > p {
+  position: relative;
+  z-index: 1;
+  margin: 0 0 0.3rem;
+  color: #9b451b;
+  font-size: 0.71rem;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+}
+
+.results-celebration h1 {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  color: var(--wine);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(2rem, 9vw, 3.5rem);
+  font-weight: 650;
+  letter-spacing: -0.055em;
+  line-height: 0.95;
+}
+
+.results-top-actions {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  margin-top: 1rem;
+}
+
+.celebration-confetti {
+  position: absolute;
+  inset: 0;
+  display: none;
+  pointer-events: none;
+}
+
+.celebration-confetti i {
+  position: absolute;
+  top: -14px;
+  left: var(--x);
+  width: 7px;
+  height: 13px;
+  border-radius: 2px;
+  background: var(--color);
+  transform: rotate(var(--tilt));
+}
+
+.results-celebration.is-animated > p {
+  animation: celebration-pop 620ms cubic-bezier(0.22, 1.35, 0.36, 1) both;
+}
+
+.results-celebration.is-animated h1 {
+  animation: celebration-rise 650ms 100ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.results-celebration.is-animated .results-top-actions {
+  animation: celebration-rise 600ms 220ms ease-out both;
+}
+
+.results-celebration.is-animated .celebration-confetti {
+  display: block;
+}
+
+.results-celebration.is-animated .celebration-confetti i {
+  animation: confetti-fall 900ms var(--delay) cubic-bezier(0.2, 0.75, 0.35, 1) both;
+}
+
+@keyframes celebration-pop {
+  from { opacity: 0; transform: scale(0.72) rotate(-2deg); }
+}
+
+@keyframes celebration-rise {
+  from { opacity: 0; transform: translateY(12px); }
+}
+
+@keyframes confetti-fall {
+  0% { opacity: 0; transform: translateY(-8px) rotate(0deg); }
+  18% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(116px) rotate(260deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .results-celebration.is-animated > p,
+  .results-celebration.is-animated h1,
+  .results-celebration.is-animated .results-top-actions,
+  .results-celebration.is-animated .celebration-confetti i {
+    animation: none;
+  }
 }
 
 .shortlist {
@@ -2486,6 +2595,11 @@ code {
 
   .bottom-nav.has-admin .nav-item {
     font-size: 0.56rem;
+  }
+
+  .results-top-actions {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .venue-card {
