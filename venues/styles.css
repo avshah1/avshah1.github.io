@@ -543,7 +543,7 @@ code {
   bottom: 0;
   left: 0;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   padding: 0.45rem max(0.75rem, calc((100vw - 32rem) / 2)) calc(0.45rem + var(--safe-bottom));
   border-top: 1px solid rgba(59, 16, 40, 0.1);
   background: rgba(255, 253, 248, 0.94);
@@ -553,7 +553,7 @@ code {
 }
 
 .bottom-nav.has-admin {
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(6, 1fr);
 }
 
 .admin-notes-group {
@@ -948,6 +948,189 @@ code {
 .nav-item.is-active {
   background: rgba(59, 16, 40, 0.07);
   color: var(--wine);
+}
+
+/* Questions */
+.ask-page {
+  width: min(100%, 38rem);
+  margin: 0 auto;
+}
+
+.ask-heading {
+  padding: 0.55rem 0.15rem 0.75rem;
+}
+
+.ask-heading h1 {
+  margin: 0;
+  color: var(--wine);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(2.3rem, 10vw, 3.5rem);
+  font-weight: 600;
+  letter-spacing: -0.05em;
+  line-height: 1;
+}
+
+.ask-composer {
+  padding: 0.75rem;
+  border: 1px solid rgba(59, 16, 40, 0.1);
+  border-radius: 17px;
+  background: var(--paper);
+  box-shadow: 0 7px 24px rgba(59, 16, 40, 0.045);
+}
+
+.ask-composer textarea {
+  display: block;
+  width: 100%;
+  min-height: 76px;
+  padding: 0.72rem 0.75rem;
+  resize: vertical;
+  border: 1px solid rgba(59, 16, 40, 0.16);
+  border-radius: 12px;
+  background: white;
+  color: var(--ink);
+  line-height: 1.45;
+}
+
+.ask-composer textarea:focus {
+  border-color: var(--saffron);
+  outline: 0;
+  box-shadow: 0 0 0 4px rgba(236, 154, 56, 0.16);
+}
+
+.ask-composer-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 0.55rem;
+}
+
+.ask-composer-actions > span {
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.ask-composer-actions .button {
+  min-width: 76px;
+}
+
+.ask-composer .field-error {
+  min-height: 0;
+  margin-bottom: 0;
+}
+
+.ask-composer .field-error:empty {
+  display: none;
+}
+
+.ask-recent {
+  margin-top: 1rem;
+}
+
+.ask-recent > h2 {
+  margin: 0 0 0.55rem;
+  color: var(--wine);
+  font-size: 0.75rem;
+  font-weight: 850;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.question-list {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.question-card {
+  padding: 0.85rem 0.9rem;
+  border: 1px solid rgba(59, 16, 40, 0.1);
+  border-radius: 16px;
+  background: var(--paper);
+  box-shadow: 0 5px 18px rgba(59, 16, 40, 0.04);
+}
+
+.question-card.is-optimistic {
+  border-style: dashed;
+}
+
+.question-meta,
+.question-text,
+.question-answer p {
+  margin: 0;
+}
+
+.question-meta {
+  color: var(--muted);
+  font-size: 0.66rem;
+  font-weight: 750;
+}
+
+.question-text {
+  margin-top: 0.28rem;
+  overflow-wrap: anywhere;
+  font-size: 0.88rem;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.question-text a,
+.question-answer-text a {
+  color: var(--teal);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
+.question-answer {
+  margin-top: 0.65rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid rgba(59, 16, 40, 0.07);
+}
+
+.question-answer-label {
+  margin-bottom: 0.2rem !important;
+  color: var(--teal);
+  font-size: 0.65rem;
+  font-weight: 850;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.question-answer-text {
+  overflow-wrap: anywhere;
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+
+.question-waiting {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 750;
+}
+
+.question-waiting > span {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 7px;
+  border-radius: 50%;
+  background: var(--saffron);
+}
+
+.question-empty {
+  margin: 0;
+  padding: 1rem;
+  border: 1px dashed rgba(59, 16, 40, 0.14);
+  border-radius: 15px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  text-align: center;
+}
+
+.question-empty p {
+  margin: 0 0 0.65rem;
 }
 
 /* Venue list */
@@ -2297,6 +2480,14 @@ code {
 }
 
 @media (max-width: 379px) {
+  .bottom-nav {
+    padding-inline: 0.35rem;
+  }
+
+  .bottom-nav.has-admin .nav-item {
+    font-size: 0.56rem;
+  }
+
   .venue-card {
     gap: 0.65rem;
     padding: 0.75rem;

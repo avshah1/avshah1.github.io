@@ -196,6 +196,7 @@
   };
   const DEFAULT_METHOD = "Each factor is weighted equally. N/A scores are excluded; available factor averages are averaged for the overall score.";
   const ADMIN_PIN_STORAGE = "venue-scout:admin-pin";
+  const QUESTION_POLL_MS = 8000;
 
   const elements = {
     loginView: document.getElementById("login-view"),
@@ -242,6 +243,15 @@
     brainstormLoading: false,
     brainstormMutating: false,
     brainstormEditingId: null,
+    questions: [],
+    questionsLoaded: false,
+    questionLoading: false,
+    questionSubmitting: false,
+    questionError: "",
+    questionSubmitError: "",
+    questionDraft: "",
+    questionPollTimer: null,
+    questionSession: 0,
     method: cachedRemote.method || DEFAULT_METHOD,
     screen: "venues",
     selectedVenueId: null,
@@ -332,6 +342,33 @@
       "'": "&#39;",
       '"': "&quot;",
     })[character]);
+  }
+
+  function textWithSafeLinks(value) {
+    const text = String(value ?? "");
+    const linkPattern = /\[([^\]\n]{1,200})\]\((https:\/\/[^\s<>"')]+)\)|(https:\/\/[^\s<>"']+)/gi;
+    let output = "";
+    let cursor = 0;
+    for (const match of text.matchAll(linkPattern)) {
+      const markdownLabel = match[1];
+      let url = match[2] || match[3];
+      let suffix = "";
+      if (!markdownLabel) {
+        while (/[),.!?;:]$/.test(url)) {
+          suffix = url.slice(-1) + suffix;
+          url = url.slice(0, -1);
+        }
+      }
+      output += escapeHTML(text.slice(cursor, match.index)).replace(/\n/g, "<br>");
+      if (url) {
+        const safeUrl = escapeHTML(url);
+        const safeLabel = markdownLabel ? escapeHTML(markdownLabel) : safeUrl;
+        output += `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer">${safeLabel}</a>`;
+      }
+      output += escapeHTML(suffix);
+      cursor = match.index + match[0].length;
+    }
+    return output + escapeHTML(text.slice(cursor)).replace(/\n/g, "<br>");
   }
 
   function levenshtein(first, second) {
@@ -783,6 +820,7 @@
     const nextProfile = { name: matchedName, key: normalizeKey(matchedName) };
     migrateLocalIdentity(previousKey, nextProfile.key, nextProfile.name);
     state.profile = nextProfile;
+    resetQuestionState();
     resetBrainstormPermissions();
     state.brainstormEditingId = null;
     const personCache = readJSON(STORAGE.state, {});
@@ -823,6 +861,7 @@
 
   function switchPerson() {
     clearTimeout(state.noteSyncTimer);
+    resetQuestionState();
     syncOutbox();
     state.profile = null;
     state.adminNotes = [];
@@ -852,11 +891,13 @@
       clearTimeout(state.noteSyncTimer);
       syncOutbox();
     }
+    if (screen !== "ask") stopQuestionPolling();
     state.screen = screen;
     if (screen !== "score") state.selectedVenueId = null;
     if (screen !== "venue-result") state.selectedResultVenueId = null;
     renderCurrentScreen();
     if (screen === "brainstorm") refreshBrainstorm({ silent: true });
+    if (screen === "ask") scheduleQuestionPoll(0);
     elements.main.focus({ preventScroll: true });
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -880,10 +921,254 @@
     if (state.screen === "score" && state.selectedVenueId) renderScorecard(state.selectedVenueId);
     else if (state.screen === "venue-result" && state.selectedResultVenueId) renderVenueResult(state.selectedResultVenueId);
     else if (state.screen === "results") renderResults();
+    else if (state.screen === "ask") renderAsk();
     else if (state.screen === "brainstorm") renderBrainstorm();
     else if (state.screen === "admin-notes" && isAdminProfile()) renderAdminNotes();
     else if (state.screen === "admin" && isAdminProfile()) renderAdmin();
     else renderVenues();
+  }
+
+  function resetQuestionState() {
+    stopQuestionPolling();
+    state.questionSession += 1;
+    state.questions = [];
+    state.questionsLoaded = false;
+    state.questionLoading = false;
+    state.questionSubmitting = false;
+    state.questionError = "";
+    state.questionSubmitError = "";
+    state.questionDraft = "";
+  }
+
+  function stopQuestionPolling() {
+    clearTimeout(state.questionPollTimer);
+    state.questionPollTimer = null;
+  }
+
+  function scheduleQuestionPoll(delay = QUESTION_POLL_MS) {
+    stopQuestionPolling();
+    if (state.screen !== "ask" || !state.profile || document.hidden || !navigator.onLine) return;
+    state.questionPollTimer = setTimeout(async () => {
+      state.questionPollTimer = null;
+      await refreshQuestions({ silent: true });
+      if (state.screen === "ask") scheduleQuestionPoll();
+    }, delay);
+  }
+
+  function cleanQuestion(value) {
+    return String(value || "").normalize("NFKC").replace(/\r\n?/g, "\n").trim().slice(0, 500);
+  }
+
+  function sameQuestion(first, second) {
+    return normalizeKey(first?.personName) === normalizeKey(second?.personName)
+      && String(first?.question || "") === String(second?.question || "");
+  }
+
+  function questionsForDisplay() {
+    return [...state.questions].sort((first, second) => {
+      if (Boolean(first.optimistic) !== Boolean(second.optimistic)) return first.optimistic ? -1 : 1;
+      return String(second.createdAt || "").localeCompare(String(first.createdAt || ""));
+    });
+  }
+
+  function formatQuestionDate(value) {
+    if (!value) return "";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+    try {
+      return new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).format(date);
+    } catch {
+      return "";
+    }
+  }
+
+  function questionMarkup(item) {
+    const answer = String(item.answer || "").trim();
+    const author = cleanName(item.personName) || "Family";
+    const askedAt = formatQuestionDate(item.createdAt);
+    return `
+      <article class="question-card ${item.optimistic ? "is-optimistic" : ""}">
+        <p class="question-meta">${escapeHTML(author)}${askedAt ? ` · ${escapeHTML(askedAt)}` : ""}</p>
+        <p class="question-text">${textWithSafeLinks(item.question)}</p>
+        <div class="question-answer ${answer ? "is-answered" : "is-waiting"}">
+          ${answer
+            ? `<p class="question-answer-label">Answer</p><p class="question-answer-text">${textWithSafeLinks(answer)}</p>`
+            : '<p class="question-waiting"><span aria-hidden="true"></span>Waiting for answer</p>'}
+        </div>
+      </article>`;
+  }
+
+  function renderQuestionList() {
+    const container = elements.main.querySelector("[data-question-list]");
+    if (!container) return;
+    const questions = questionsForDisplay();
+    if (questions.length) {
+      container.innerHTML = `<div class="question-list">${questions.map(questionMarkup).join("")}</div>`;
+      return;
+    }
+    if (!state.questionsLoaded && state.questionError) {
+      container.innerHTML = `<div class="question-empty"><p>${escapeHTML(state.questionError)}</p><button type="button" class="button button-secondary button-small" data-question-retry>Try again</button></div>`;
+      container.querySelector("[data-question-retry]").addEventListener("click", () => {
+        state.questionError = "";
+        renderQuestionList();
+        refreshQuestions({ silent: false });
+      });
+      return;
+    }
+    container.innerHTML = state.questionsLoaded
+      ? '<p class="question-empty">No questions yet.</p>'
+      : '<p class="question-empty">Loading questions<span class="loading-dots"></span></p>';
+  }
+
+  function updateAskFormUI() {
+    const form = elements.main.querySelector("[data-ask-form]");
+    if (!form) return;
+    const editor = form.querySelector("textarea");
+    const button = form.querySelector('button[type="submit"]');
+    const counter = form.querySelector("[data-question-count]");
+    editor.disabled = state.questionSubmitting;
+    button.disabled = state.questionSubmitting;
+    counter.textContent = `${editor.value.length} / 500`;
+  }
+
+  async function refreshQuestions(options = {}) {
+    if (!state.profile || state.questionLoading) return;
+    if (!navigator.onLine) {
+      if (!state.questionsLoaded) state.questionError = "Connect to load recent questions.";
+      if (state.screen === "ask") renderQuestionList();
+      return;
+    }
+    const questionSession = state.questionSession;
+    const profileName = state.profile.name;
+    state.questionLoading = true;
+    try {
+      const data = await apiFetch(`/api/questions?name=${encodeURIComponent(profileName)}`);
+      if (questionSession !== state.questionSession) return;
+      const remoteQuestions = Array.isArray(data.questions) ? data.questions.filter((item) => item && item.question) : [];
+      const optimistic = state.questions.filter((item) => item.optimistic && !remoteQuestions.some((remote) => sameQuestion(item, remote)));
+      state.questions = [...optimistic, ...remoteQuestions];
+      state.questionsLoaded = true;
+      state.questionError = "";
+    } catch (error) {
+      if (questionSession !== state.questionSession) return;
+      if (!state.questionsLoaded) state.questionError = "Couldn’t load recent questions.";
+      if (!options.silent) showToast(error.message || "Couldn’t refresh questions.");
+    } finally {
+      if (questionSession === state.questionSession) {
+        state.questionLoading = false;
+        if (state.screen === "ask") renderQuestionList();
+      }
+    }
+  }
+
+  async function submitQuestion(form) {
+    if (state.questionSubmitting || !state.profile) return;
+    const editor = form.querySelector("textarea");
+    const error = form.querySelector("[data-question-error]");
+    const question = cleanQuestion(editor.value);
+    state.questionSubmitError = "";
+    error.textContent = "";
+    if (!question) {
+      state.questionSubmitError = "Write a question first.";
+      error.textContent = state.questionSubmitError;
+      editor.focus();
+      return;
+    }
+    if (!navigator.onLine) {
+      state.questionSubmitError = "Connect to send this question.";
+      error.textContent = state.questionSubmitError;
+      return;
+    }
+
+    const questionSession = state.questionSession;
+    const profile = { ...state.profile };
+    const optimisticId = `pending:${makeMutationId()}`;
+    const optimisticQuestion = {
+      id: optimisticId,
+      personName: profile.name,
+      question,
+      status: "pending",
+      answer: "",
+      createdAt: new Date().toISOString(),
+      answeredAt: null,
+      optimistic: true,
+    };
+    state.questionSubmitting = true;
+    state.questionDraft = "";
+    state.questions = [optimisticQuestion, ...state.questions];
+    editor.value = "";
+    updateAskFormUI();
+    renderQuestionList();
+
+    try {
+      const data = await apiFetch("/api/questions", {
+        method: "POST",
+        body: JSON.stringify({ personName: profile.name, question }),
+      });
+      if (questionSession !== state.questionSession) return;
+      const savedQuestion = data.question && data.question.question
+        ? { ...optimisticQuestion, ...data.question, optimistic: false }
+        : { ...optimisticQuestion, optimistic: false };
+      const optimisticIndex = state.questions.findIndex((item) => item.id === optimisticId);
+      if (optimisticIndex >= 0) state.questions.splice(optimisticIndex, 1, savedQuestion);
+      else if (!state.questions.some((item) => item.id === savedQuestion.id)) state.questions.unshift(savedQuestion);
+      state.questions = state.questions.filter((item, index, items) => !item.id || items.findIndex((candidate) => candidate.id === item.id) === index);
+      state.questionsLoaded = true;
+      renderQuestionList();
+      scheduleQuestionPoll(2000);
+    } catch (requestError) {
+      if (questionSession !== state.questionSession) return;
+      state.questions = state.questions.filter((item) => item.id !== optimisticId);
+      state.questionDraft = question;
+      state.questionSubmitError = requestError.message || "Couldn’t send that question. Try again.";
+      renderQuestionList();
+    } finally {
+      if (questionSession === state.questionSession) {
+        state.questionSubmitting = false;
+        if (state.screen === "ask") {
+          renderAsk();
+          if (state.questionSubmitError) elements.main.querySelector("[data-ask-form] textarea")?.focus();
+        }
+      }
+    }
+  }
+
+  function renderAsk() {
+    state.screen = "ask";
+    elements.main.innerHTML = `
+      <section class="ask-page" aria-labelledby="ask-title">
+        <header class="ask-heading">
+          <h1 id="ask-title">Ask</h1>
+        </header>
+        <form class="ask-composer" data-ask-form novalidate>
+          <label class="sr-only" for="family-question">Your question</label>
+          <textarea id="family-question" name="question" rows="3" maxlength="500" placeholder="What do you want to know?" required>${escapeHTML(state.questionDraft)}</textarea>
+          <div class="ask-composer-actions">
+            <span data-question-count>${state.questionDraft.length} / 500</span>
+            <button type="submit" class="button button-primary">Ask</button>
+          </div>
+          <p class="field-error" data-question-error role="alert">${escapeHTML(state.questionSubmitError)}</p>
+        </form>
+        <section class="ask-recent" aria-labelledby="recent-questions-title">
+          <h2 id="recent-questions-title">Recent questions</h2>
+          <div data-question-list aria-live="polite"></div>
+        </section>
+      </section>`;
+
+    const form = elements.main.querySelector("[data-ask-form]");
+    const editor = form.querySelector("textarea");
+    editor.addEventListener("input", () => {
+      state.questionDraft = editor.value;
+      state.questionSubmitError = "";
+      form.querySelector("[data-question-error]").textContent = "";
+      updateAskFormUI();
+    });
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      submitQuestion(form);
+    });
+    updateAskFormUI();
+    renderQuestionList();
   }
 
   function cleanBrainstormBody(value) {
@@ -2206,19 +2491,31 @@
     window.addEventListener("online", () => {
       updateConnectionUI();
       syncOutbox().then(() => refreshRemoteState({ silent: true, preserveEditor: noteEditorIsMounted() }));
+      if (state.screen === "ask") scheduleQuestionPoll(0);
     });
-    window.addEventListener("offline", updateConnectionUI);
+    window.addEventListener("offline", () => {
+      updateConnectionUI();
+      stopQuestionPolling();
+      if (state.screen === "ask" && !state.questionsLoaded) {
+        state.questionError = "Connect to load recent questions.";
+        renderQuestionList();
+      }
+    });
     document.addEventListener("visibilitychange", () => {
+      if (document.hidden) stopQuestionPolling();
+      else if (state.screen === "ask") scheduleQuestionPoll(0);
       if (!navigator.onLine) return;
       clearTimeout(state.noteSyncTimer);
       syncOutbox();
     });
     window.addEventListener("pagehide", () => {
       clearTimeout(state.noteSyncTimer);
+      stopQuestionPolling();
       syncOutbox();
     });
     window.addEventListener("pageshow", () => {
       if (navigator.onLine) syncOutbox();
+      if (state.screen === "ask") scheduleQuestionPoll(0);
     });
   }
 
