@@ -108,6 +108,14 @@ function base(extra){ return Object.assign({paper_bgcolor:"rgba(0,0,0,0)",plot_b
 const CFG = {displayModeBar:false,responsive:true};
 function span(vals,lo,hi,pad){const v=vals.filter(x=>typeof x==="number"&&isFinite(x));if(lo!==undefined)v.push(lo);if(hi!==undefined)v.push(hi);const a=Math.min(...v),b=Math.max(...v),p=(b-a)*(pad||0.06);return [a-p,b+p];}
 function views(key){return Object.values(DATA[key]||{}).filter(d=>d&&typeof d==="object");}
+// Row order is fixed from the "all" view so a benchmark chip moves the dots, not the rows.
+const ORDER={
+ leaderboard:[...DATA.leaderboard.all.rows].sort((a,b)=>b.brier-a.brier).map(r=>r.model),
+ lab_effects:[...DATA.lab_effects.all.rows].sort((a,b)=>a.coef-b.coef).map(r=>r.family),
+ ablations:(DATA.ablations.all.effort.length>=DATA.ablations.all.history.length?DATA.ablations.all.effort:DATA.ablations.all.history).map(r=>r.model),
+ oracle:[...DATA.oracle.all.rows].sort((a,b)=>a.truthful-b.truthful).map(r=>r.model)
+};
+const byOrder=(rows,order,key)=>order.map(n=>rows.find(r=>r[key]===n)).filter(Boolean).concat(rows.filter(r=>!order.includes(r[key])));
 const RANGES={
  leaderboard:span(views("leaderboard").flatMap(d=>d.rows.flatMap(r=>[r.lo,r.hi])),0.25),
  lab_effects:span(views("lab_effects").flatMap(d=>d.rows.flatMap(r=>[r.lo,r.hi])),0),
@@ -120,19 +128,19 @@ const RANGES={
 };
 const FIGS = {
  leaderboard:{title:"Brier score by model",cap:"Dot: mean Brier score. Line: 95% task-bootstrap interval. Dashed line: always saying 50%. Source: Vals AI production runs.",
-  draw(d,el){const rows=[...d.rows].sort((a,b)=>b.brier-a.brier);const y=rows.map(r=>r.model);
+  draw(d,el){const rows=byOrder(d.rows,ORDER.leaderboard,"model");const y=rows.map(r=>r.model);
    Plotly.newPlot(el,[{type:"scatter",mode:"markers",x:rows.map(r=>r.brier),y,marker:{color:css("--accent"),size:9},
     error_x:{type:"data",symmetric:false,array:rows.map(r=>r.hi-r.brier),arrayminus:rows.map(r=>r.brier-r.lo),color:css("--accent"),thickness:1.3,width:0},
     hovertemplate:"%{y}<br>Brier %{x:.3f}<extra></extra>"}],
     base({height:460,xaxis:{title:{text:"Brier score (0–1; lower is better)"},gridcolor:css("--grid"),range:RANGES.leaderboard},shapes:[{type:"line",x0:.25,x1:.25,y0:-.5,y1:y.length-.5,line:{dash:"dash",color:css("--muted"),width:1}}],
     annotations:[{x:.25,y:y.length-.5,text:"always saying 50%",showarrow:false,yanchor:"bottom",font:{color:css("--muted"),size:11}}]}),CFG);}},
  lab_effects:{title:"Lab effect on bid minus realized success",cap:"Dot: estimate (pp). Line: 95% interval. Positive means the lab's models overbid relative to the average model.",
-  draw(d,el){const rows=[...d.rows].sort((a,b)=>a.coef-b.coef);const y=rows.map(r=>r.family);
+  draw(d,el){const rows=byOrder(d.rows,ORDER.lab_effects,"family");const y=rows.map(r=>r.family);
    Plotly.newPlot(el,[{type:"scatter",mode:"markers",x:rows.map(r=>r.coef),y,marker:{color:css("--accent"),size:9},
     error_x:{type:"data",symmetric:false,array:rows.map(r=>r.hi-r.coef),arrayminus:rows.map(r=>r.coef-r.lo),color:css("--accent"),thickness:1.3,width:0},hovertemplate:"%{y}: %{x:+.1f} pp<extra></extra>"}],
     base({height:400,margin:{l:110,r:20,t:10,b:50},xaxis:{title:{text:"Bid minus realized success (pp)"},gridcolor:css("--grid"),zeroline:true,zerolinecolor:css("--muted"),range:RANGES.lab_effects}}),CFG);}},
  ablations:{title:"Change in Brier score under each bid-time ablation",cap:"Dot: mean change versus the baseline bid. Line: 95% task-bootstrap interval. Diamond: pooled across models. Negative means the bids got better.",
-  draw(d,el){const mk=(rows,pooled,xa,ya)=>{const r=[...rows];const y=r.map(x=>x.model).concat(["Pooled"]);const v=r.map(x=>x.delta).concat([pooled.delta]);
+  draw(d,el){const mk=(rows,pooled,xa,ya)=>{const r=byOrder(rows,ORDER.ablations,"model");const y=r.map(x=>x.model).concat(["Pooled"]);const v=r.map(x=>x.delta).concat([pooled.delta]);
     return {type:"scatter",mode:"markers",x:v,y,xaxis:xa,yaxis:ya,marker:{color:y.map(n=>n==="Pooled"?css("--muted"):css("--accent")),size:9,symbol:y.map(n=>n==="Pooled"?"diamond":"circle")},
      error_x:{type:"data",symmetric:false,array:r.map(x=>x.hi-x.delta).concat([pooled.hi-pooled.delta]),arrayminus:r.map(x=>x.delta-x.lo).concat([pooled.delta-pooled.lo]),color:css("--accent"),thickness:1.3,width:0},hovertemplate:"%{y}: %{x:+.3f}<extra></extra>"};};
    Plotly.newPlot(el,[mk(d.effort,d.pooled_effort,"x","y"),mk(d.history,d.pooled_history,"x2","y2")],
@@ -148,7 +156,7 @@ const FIGS = {
     error_y:{type:"data",symmetric:false,array:r.map(x=>x.hi-x.diff),arrayminus:r.map(x=>x.diff-x.lo),color:"rgba(128,128,128,.5)",thickness:1.2,width:0},hovertemplate:"%{text}<br>%{y:+.3f}<extra></extra>"}],
     base({height:460,margin:{l:60,r:20,t:20,b:50},xaxis:{title:{text:"Vals Index score (points)"},gridcolor:css("--grid"),range:RANGES.skill.x},yaxis:{title:{text:"Bid Brier minus own-base-rate Brier"},gridcolor:css("--grid"),zeroline:true,zerolinecolor:css("--muted"),range:RANGES.skill.y}}),CFG);}},
  oracle:{title:"Auction profit per task, own bids vs bids equal to realized outcome",cap:"Each line connects a model's profit on its own bids (blue) to its profit bidding its realized success rate and cost on each task (orange, hindsight).",
-  draw(d,el){const rows=[...d.rows].sort((a,b)=>a.truthful-b.truthful);if(d.pooled)rows.unshift({model:"Pooled",own:d.pooled.own,truthful:d.pooled.truthful});const y=rows.map(r=>r.model);const segs=rows.map(r=>({type:"line",x0:r.own,x1:r.truthful,y0:r.model,y1:r.model,line:{color:css("--rule"),width:3}}));
+  draw(d,el){const rows=byOrder(d.rows,ORDER.oracle,"model");if(d.pooled)rows.unshift({model:"Pooled",own:d.pooled.own,truthful:d.pooled.truthful});const y=rows.map(r=>r.model);const segs=rows.map(r=>({type:"line",x0:r.own,x1:r.truthful,y0:r.model,y1:r.model,line:{color:css("--rule"),width:3}}));
    Plotly.newPlot(el,[{type:"scatter",mode:"markers",name:"Own bids",x:rows.map(r=>r.own),y,marker:{color:css("--accent"),size:9},hovertemplate:"%{y} own: $%{x:.2f}<extra></extra>"},{type:"scatter",mode:"markers",name:"Realized-outcome bids",x:rows.map(r=>r.truthful),y,marker:{color:css("--accent2"),size:9},hovertemplate:"%{y} hindsight: $%{x:.2f}<extra></extra>"}],
     base({height:460,showlegend:true,legend:{orientation:"h",y:1.08,x:0},xaxis:{title:{text:"Profit per task in the auction (USD)"},gridcolor:css("--grid"),range:RANGES.oracle},shapes:segs}),CFG);}},
  routing:{title:"Routing rules: success rate and spend per task",cap:"The hindsight oracle assigns each task to the model that did best on it in the same runs; it is an upper bound. Source: Vals AI production runs.",
