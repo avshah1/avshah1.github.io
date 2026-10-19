@@ -106,48 +106,60 @@ const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).
 function base(extra){ return Object.assign({paper_bgcolor:"rgba(0,0,0,0)",plot_bgcolor:"rgba(0,0,0,0)",font:{family:css("--body"),color:css("--fg"),size:13},
   margin:{l:150,r:20,t:10,b:50},showlegend:false,xaxis:{gridcolor:css("--grid"),zeroline:false,linecolor:css("--rule")},yaxis:{gridcolor:css("--grid"),zeroline:false,automargin:true}},extra||{}); }
 const CFG = {displayModeBar:false,responsive:true};
+function span(vals,lo,hi,pad){const v=vals.filter(x=>typeof x==="number"&&isFinite(x));if(lo!==undefined)v.push(lo);if(hi!==undefined)v.push(hi);const a=Math.min(...v),b=Math.max(...v),p=(b-a)*(pad||0.06);return [a-p,b+p];}
+function views(key){return Object.values(DATA[key]||{}).filter(d=>d&&typeof d==="object");}
+const RANGES={
+ leaderboard:span(views("leaderboard").flatMap(d=>d.rows.flatMap(r=>[r.lo,r.hi])),0.25),
+ lab_effects:span(views("lab_effects").flatMap(d=>d.rows.flatMap(r=>[r.lo,r.hi])),0),
+ ablations:span(views("ablations").flatMap(d=>[...(d.effort||[]),...(d.history||[]),d.pooled_effort,d.pooled_history].filter(Boolean).flatMap(r=>[r.lo,r.hi])),0),
+ emergence:{x:span(views("emergence").flatMap(d=>d.rows.map(r=>r.index_score)),undefined,undefined,0.08),y:span(views("emergence").flatMap(d=>d.rows.map(r=>r.brier)),0.25,undefined,0.1)},
+ skill:{x:span(views("skill").flatMap(d=>d.rows.map(r=>r.index_score)),undefined,undefined,0.08),y:span(views("skill").flatMap(d=>d.rows.flatMap(r=>[r.lo,r.hi])),0)},
+ oracle:span(views("oracle").flatMap(d=>d.rows.flatMap(r=>[r.own,r.truthful]).concat(d.pooled?[d.pooled.own,d.pooled.truthful]:[])),0),
+ routing:{s:[0,Math.max(...views("routing").flatMap(d=>d.rules.map(r=>r.success)))*1.25],c:[0,Math.max(...views("routing").flatMap(d=>d.rules.map(r=>r.spend)))*1.3]},
+ cost_success:{x:span(views("cost_success").flatMap(d=>[...d.models,...d.rules].map(r=>Math.log10(r.spend))),undefined,undefined,0.08),y:span(views("cost_success").flatMap(d=>[...d.models,...d.rules].map(r=>r.success)),undefined,undefined,0.1)}
+};
 const FIGS = {
  leaderboard:{title:"Brier score by model",cap:"Dot: mean Brier score. Line: 95% task-bootstrap interval. Dashed line: always saying 50%. Source: Vals AI production runs.",
   draw(d,el){const rows=[...d.rows].sort((a,b)=>b.brier-a.brier);const y=rows.map(r=>r.model);
    Plotly.newPlot(el,[{type:"scatter",mode:"markers",x:rows.map(r=>r.brier),y,marker:{color:css("--accent"),size:9},
     error_x:{type:"data",symmetric:false,array:rows.map(r=>r.hi-r.brier),arrayminus:rows.map(r=>r.brier-r.lo),color:css("--accent"),thickness:1.3,width:0},
     hovertemplate:"%{y}<br>Brier %{x:.3f}<extra></extra>"}],
-    base({height:460,xaxis:{title:{text:"Brier score (0–1; lower is better)"},gridcolor:css("--grid")},shapes:[{type:"line",x0:.25,x1:.25,y0:-.5,y1:y.length-.5,line:{dash:"dash",color:css("--muted"),width:1}}],
+    base({height:460,xaxis:{title:{text:"Brier score (0–1; lower is better)"},gridcolor:css("--grid"),range:RANGES.leaderboard},shapes:[{type:"line",x0:.25,x1:.25,y0:-.5,y1:y.length-.5,line:{dash:"dash",color:css("--muted"),width:1}}],
     annotations:[{x:.25,y:y.length-.5,text:"always saying 50%",showarrow:false,yanchor:"bottom",font:{color:css("--muted"),size:11}}]}),CFG);}},
  lab_effects:{title:"Lab effect on bid minus realized success",cap:"Dot: estimate (pp). Line: 95% interval. Positive means the lab's models overbid relative to the average model.",
   draw(d,el){const rows=[...d.rows].sort((a,b)=>a.coef-b.coef);const y=rows.map(r=>r.family);
    Plotly.newPlot(el,[{type:"scatter",mode:"markers",x:rows.map(r=>r.coef),y,marker:{color:css("--accent"),size:9},
     error_x:{type:"data",symmetric:false,array:rows.map(r=>r.hi-r.coef),arrayminus:rows.map(r=>r.coef-r.lo),color:css("--accent"),thickness:1.3,width:0},hovertemplate:"%{y}: %{x:+.1f} pp<extra></extra>"}],
-    base({height:400,margin:{l:110,r:20,t:10,b:50},xaxis:{title:{text:"Bid minus realized success (pp)"},gridcolor:css("--grid"),zeroline:true,zerolinecolor:css("--muted")}}),CFG);}},
+    base({height:400,margin:{l:110,r:20,t:10,b:50},xaxis:{title:{text:"Bid minus realized success (pp)"},gridcolor:css("--grid"),zeroline:true,zerolinecolor:css("--muted"),range:RANGES.lab_effects}}),CFG);}},
  ablations:{title:"Change in Brier score under each bid-time ablation",cap:"Dot: mean change versus the baseline bid. Line: 95% task-bootstrap interval. Diamond: pooled across models. Negative means the bids got better.",
   draw(d,el){const mk=(rows,pooled,xa,ya)=>{const r=[...rows];const y=r.map(x=>x.model).concat(["Pooled"]);const v=r.map(x=>x.delta).concat([pooled.delta]);
     return {type:"scatter",mode:"markers",x:v,y,xaxis:xa,yaxis:ya,marker:{color:y.map(n=>n==="Pooled"?css("--muted"):css("--accent")),size:9,symbol:y.map(n=>n==="Pooled"?"diamond":"circle")},
      error_x:{type:"data",symmetric:false,array:r.map(x=>x.hi-x.delta).concat([pooled.hi-pooled.delta]),arrayminus:r.map(x=>x.delta-x.lo).concat([pooled.delta-pooled.lo]),color:css("--accent"),thickness:1.3,width:0},hovertemplate:"%{y}: %{x:+.3f}<extra></extra>"};};
    Plotly.newPlot(el,[mk(d.effort,d.pooled_effort,"x","y"),mk(d.history,d.pooled_history,"x2","y2")],
     base({height:420,grid:{rows:1,columns:2,pattern:"independent"},margin:{l:130,r:20,t:40,b:50},
-     xaxis:{title:{text:"Lower reasoning effort"},gridcolor:css("--grid"),zeroline:true,zerolinecolor:css("--muted"),domain:[0,.46]},xaxis2:{title:{text:"Given its track record (other benchmarks)"},gridcolor:css("--grid"),zeroline:true,zerolinecolor:css("--muted"),domain:[.56,1]},
+     xaxis:{title:{text:"Lower reasoning effort"},gridcolor:css("--grid"),zeroline:true,zerolinecolor:css("--muted"),domain:[0,.46],range:RANGES.ablations},xaxis2:{title:{text:"Given its track record (other benchmarks)"},gridcolor:css("--grid"),zeroline:true,zerolinecolor:css("--muted"),domain:[.56,1],range:RANGES.ablations},
      yaxis:{autorange:"reversed"},yaxis2:{autorange:"reversed",showticklabels:false}}),CFG);}},
  emergence:{title:"Vals Index score vs Brier score",cap:"Dot: one model, colored by lab. Arrow: older to newer model in the same family. Dashed line: always saying 50%. Source: Vals Index (saved Oct 12) and Vals AI production runs.",
   draw(d,el){const r=d.rows;const ann=(d.arrows||[]).map(([a,b])=>{const A=r.find(x=>x.model===a),B=r.find(x=>x.model===b);return A&&B?{x:B.index_score,y:B.brier,ax:A.index_score,ay:A.brier,xref:"x",yref:"y",axref:"x",ayref:"y",showarrow:true,arrowhead:3,arrowwidth:1.5,arrowcolor:FAMCOL[B.family]||css("--muted"),text:""}:null}).filter(Boolean);
    Plotly.newPlot(el,[{type:"scatter",mode:"markers+text",x:r.map(x=>x.index_score),y:r.map(x=>x.brier),text:r.map(x=>x.model),textposition:"top center",textfont:{size:11},marker:{size:10,color:r.map(x=>FAMCOL[x.family]||css("--muted"))},hovertemplate:"%{text}<br>Index %{x:.1f}, Brier %{y:.3f}<extra></extra>"}],
-    base({height:460,margin:{l:60,r:20,t:20,b:50},xaxis:{title:{text:"Vals Index score (points)"},gridcolor:css("--grid")},yaxis:{title:{text:"Brier score (lower is better)"},gridcolor:css("--grid")},annotations:ann,shapes:[{type:"line",xref:"paper",x0:0,x1:1,y0:.25,y1:.25,line:{dash:"dash",color:css("--muted"),width:1}}]}),CFG);}},
+    base({height:460,margin:{l:60,r:20,t:20,b:50},xaxis:{title:{text:"Vals Index score (points)"},gridcolor:css("--grid"),range:RANGES.emergence.x},yaxis:{title:{text:"Brier score (lower is better)"},gridcolor:css("--grid"),range:RANGES.emergence.y},annotations:ann,shapes:[{type:"line",xref:"paper",x0:0,x1:1,y0:.25,y1:.25,line:{dash:"dash",color:css("--muted"),width:1}}]}),CFG);}},
  skill:{title:"Task-specific information in bids vs Vals Index score",cap:"Dot: bid Brier minus the Brier of bidding the model's own leave-one-task-out base rate; negative means the bid carries information beyond the model's average. Line: 95% task-bootstrap interval.",
   draw(d,el){const r=d.rows;Plotly.newPlot(el,[{type:"scatter",mode:"markers+text",x:r.map(x=>x.index_score),y:r.map(x=>x.diff),text:r.map(x=>x.model),textposition:"top center",textfont:{size:11},marker:{size:10,color:r.map(x=>FAMCOL[x.family]||css("--accent"))},
     error_y:{type:"data",symmetric:false,array:r.map(x=>x.hi-x.diff),arrayminus:r.map(x=>x.diff-x.lo),color:"rgba(128,128,128,.5)",thickness:1.2,width:0},hovertemplate:"%{text}<br>%{y:+.3f}<extra></extra>"}],
-    base({height:460,margin:{l:60,r:20,t:20,b:50},xaxis:{title:{text:"Vals Index score (points)"},gridcolor:css("--grid")},yaxis:{title:{text:"Bid Brier minus own-base-rate Brier"},gridcolor:css("--grid"),zeroline:true,zerolinecolor:css("--muted")}}),CFG);}},
+    base({height:460,margin:{l:60,r:20,t:20,b:50},xaxis:{title:{text:"Vals Index score (points)"},gridcolor:css("--grid"),range:RANGES.skill.x},yaxis:{title:{text:"Bid Brier minus own-base-rate Brier"},gridcolor:css("--grid"),zeroline:true,zerolinecolor:css("--muted"),range:RANGES.skill.y}}),CFG);}},
  oracle:{title:"Auction profit per task, own bids vs bids equal to realized outcome",cap:"Each line connects a model's profit on its own bids (blue) to its profit bidding its realized success rate and cost on each task (orange, hindsight).",
   draw(d,el){const rows=[...d.rows].sort((a,b)=>a.truthful-b.truthful);if(d.pooled)rows.unshift({model:"Pooled",own:d.pooled.own,truthful:d.pooled.truthful});const y=rows.map(r=>r.model);const segs=rows.map(r=>({type:"line",x0:r.own,x1:r.truthful,y0:r.model,y1:r.model,line:{color:css("--rule"),width:3}}));
    Plotly.newPlot(el,[{type:"scatter",mode:"markers",name:"Own bids",x:rows.map(r=>r.own),y,marker:{color:css("--accent"),size:9},hovertemplate:"%{y} own: $%{x:.2f}<extra></extra>"},{type:"scatter",mode:"markers",name:"Realized-outcome bids",x:rows.map(r=>r.truthful),y,marker:{color:css("--accent2"),size:9},hovertemplate:"%{y} hindsight: $%{x:.2f}<extra></extra>"}],
-    base({height:460,showlegend:true,legend:{orientation:"h",y:1.08,x:0},xaxis:{title:{text:"Profit per task in the auction (USD)"},gridcolor:css("--grid")},shapes:segs}),CFG);}},
+    base({height:460,showlegend:true,legend:{orientation:"h",y:1.08,x:0},xaxis:{title:{text:"Profit per task in the auction (USD)"},gridcolor:css("--grid"),range:RANGES.oracle},shapes:segs}),CFG);}},
  routing:{title:"Routing rules: success rate and spend per task",cap:"The hindsight oracle assigns each task to the model that did best on it in the same runs; it is an upper bound. Source: Vals AI production runs.",
   draw(d,el){const r=d.rules;const y=r.map(x=>x.rule);const lol=(vals,xa,fmt)=>[{type:"bar",orientation:"h",x:vals,y,xaxis:xa,marker:{color:css("--rule")},width:.08,hoverinfo:"skip"},{type:"scatter",mode:"markers+text",x:vals,y,xaxis:xa,text:vals.map(fmt),textposition:"top center",textfont:{size:11},marker:{color:css("--accent"),size:10},hoverinfo:"skip"}];
    Plotly.newPlot(el,[...lol(r.map(x=>x.success),"x",v=>v.toFixed(1)+"%"),...lol(r.map(x=>x.spend),"x2",v=>"$"+v.toFixed(2))],
-    base({height:380,grid:{rows:1,columns:2,pattern:"coupled"},margin:{l:150,r:20,t:30,b:50},barmode:"overlay",xaxis:{title:{text:"Success rate (%)"},domain:[0,.46],gridcolor:css("--grid"),range:[0,Math.max(...r.map(x=>x.success))*1.25]},xaxis2:{title:{text:"Spend per task (USD)"},domain:[.56,1],gridcolor:css("--grid"),range:[0,Math.max(...r.map(x=>x.spend))*1.3]},yaxis:{autorange:"reversed"}}),CFG);}},
+    base({height:380,grid:{rows:1,columns:2,pattern:"coupled"},margin:{l:150,r:20,t:30,b:50},barmode:"overlay",xaxis:{title:{text:"Success rate (%)"},domain:[0,.46],gridcolor:css("--grid"),range:RANGES.routing.s},xaxis2:{title:{text:"Spend per task (USD)"},domain:[.56,1],gridcolor:css("--grid"),range:RANGES.routing.c},yaxis:{autorange:"reversed"}}),CFG);}},
  cost_success:{title:"Success rate and spend per task: models and routing rules",cap:"Gray: individual models. Colored diamonds: routing rules. The hindsight oracle is an upper bound.",
   draw(d,el){const m=d.models,r=d.rules;const RC={"Models' own bids":css("--accent"),"Random":"#2ba3a3","Track record":css("--accent2"),"Best single model":"#8e6bbf","Hindsight oracle":"#3ba55d"};
    Plotly.newPlot(el,[{type:"scatter",mode:"markers+text",x:m.map(x=>x.spend),y:m.map(x=>x.success),text:m.map(x=>x.model),textposition:"top center",textfont:{size:10,color:css("--muted")},marker:{size:8,color:"#9a9a9a"},hovertemplate:"%{text}<br>%{y:.1f}% at $%{x:.2f}<extra></extra>"},
     {type:"scatter",mode:"markers+text",x:r.map(x=>x.spend),y:r.map(x=>x.success),text:r.map(x=>x.rule),textposition:"bottom center",textfont:{size:11},marker:{size:13,symbol:"diamond",color:r.map(x=>RC[x.rule]||css("--accent"))},hovertemplate:"%{text}<br>%{y:.1f}% at $%{x:.2f}<extra></extra>"}],
-    base({height:460,margin:{l:60,r:20,t:20,b:50},xaxis:{title:{text:"Execution spend per task (USD; log scale)"},type:"log",gridcolor:css("--grid")},yaxis:{title:{text:"Success rate (%)"},gridcolor:css("--grid")}}),CFG);}}
+    base({height:460,margin:{l:60,r:20,t:20,b:50},xaxis:{title:{text:"Execution spend per task (USD; log scale)"},type:"log",gridcolor:css("--grid"),range:RANGES.cost_success.x},yaxis:{title:{text:"Success rate (%)"},gridcolor:css("--grid"),range:RANGES.cost_success.y}}),CFG);}}
 };
 const TABLES = {
  leaderboard:{cols:[["model","Model"],["brier","Brier score","num"],["ci","95% interval","num"],["gap_pp","Bid minus success (pp)","num"],["loss","Auction loss ($/task)","num"]],
